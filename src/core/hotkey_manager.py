@@ -19,3 +19,16 @@ class HotkeyManager(QObject):
     def on_trigger(self):
         print(f"Hotkey {self.combination} triggered")
         self.triggered.emit()
+
+    def update_hotkey(self, new_combination):
+        if self.combination == new_combination:
+            return
+            
+        try:
+            self.stop()
+            self.combination = new_combination
+            self.start()
+            return True
+        except Exception as e:
+            print(f"Failed to update hotkey: {e}")
+            return False

@@ -15,8 +15,15 @@ class ApiClient:
                 )
             return transcription.text
         except Exception as e:
-            print(f"Transcription error: {e}")
-            return None
+            error_msg = str(e)
+            print(f"Transcription error: {error_msg}")
+            if "AuthenticationError" in error_msg or "Incorrect API key" in error_msg:
+                return "Error: Invalid API Key"
+            elif "RateLimitError" in error_msg:
+                return "Error: Rate Limit Exceeded"
+            elif "ConnectionError" in error_msg:
+                return "Error: No Connection"
+            return f"Error: Transcription Failed"
 
     def correct_text(self, text, previous_messages=[], system_prompt=None, context_chars=3000):
         try:

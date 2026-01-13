@@ -13,6 +13,15 @@ def load_settings():
         print(f"Error loading settings: {e}")
     return {}
 
+def save_settings_file(settings):
+    try:
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error saving settings: {e}")
+        return False
+
 def get_openai_key():
     key = os.getenv("OPENAI_API_KEY")
     if not key:
