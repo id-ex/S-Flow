@@ -1,14 +1,15 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeySequence, QIcon
+from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
+import os
 
 class HotkeyEdit(QLineEdit):
-    def __init__(self, text="", parent=None):
+    def __init__(self, text: str = "", parent=None):
         super().__init__(text, parent)
         self.setPlaceholderText("Нажмите сочетание клавиш...")
         self.setReadOnly(True) # Prevent manual typing, only capture
         
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent):
         key = event.key()
         modifiers = event.modifiers()
         
@@ -38,8 +39,11 @@ class HotkeyEdit(QLineEdit):
         self.setText(final_hotkey)
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None, current_hotkey="", current_api_key=""):
+    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = ""):
         super().__init__(parent)
+        self.new_hotkey = current_hotkey
+        self.new_api_key = current_api_key
+        
         self.setWindowTitle("Настройки S-Flow")
         self.setWindowIcon(QIcon("assets/icon.png"))
         self.setFixedSize(400, 200)
@@ -70,32 +74,13 @@ class SettingsDialog(QDialog):
         btn_layout.addWidget(cancel_btn)
         self.layout.addLayout(btn_layout)
         
-        # Styling
-        self.setStyleSheet("""
-            QDialog { background-color: #2c2c2c; color: white; }
-            QLabel { color: #e0e0e0; font-family: 'Segoe UI'; font-size: 14px; }
-            QLineEdit { 
-                padding: 5px; 
-                border: 1px solid #555; 
-                border-radius: 5px; 
-                background-color: #3d3d3d; 
-                color: white; 
-                font-family: 'Consolas';
-            }
-            QLineEdit:focus {
-                border: 2px solid #0078D4;
-                background-color: #454545;
-            }
-            QPushButton {
-                background-color: #0078D4;
-                color: white;
-                border: none;
-                padding: 8px 15px;
-                border-radius: 5px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #006abc; }
-        """)
+        self.load_styles()
+
+    def load_styles(self):
+        style_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "style.qss")
+        if os.path.exists(style_path):
+            with open(style_path, "r", encoding="utf-8") as f:
+                self.setStyleSheet(f.read())
 
     def save_settings(self):
         new_hotkey = self.hotkey_input.text().strip()

@@ -1,0 +1,32 @@
+QDialog { 
+    background-color: #2c2c2c; 
+    color: white; 
+}
+QLabel { 
+    color: #e0e0e0; 
+    font-family: 'Segoe UI'; 
+    font-size: 14px; 
+}
+QLineEdit { 
+    padding: 5px; 
+    border: 1px solid #555; 
+    border-radius: 5px; 
+    background-color: #3d3d3d; 
+    color: white; 
+    font-family: 'Consolas';
+}
+QLineEdit:focus {
+    border: 2px solid #0078D4;
+    background-color: #454545;
+}
+QPushButton {
+    background-color: #0078D4;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+QPushButton:hover { 
+    background-color: #006abc; 
+}

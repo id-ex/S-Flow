@@ -1,31 +1,42 @@
-from openai import OpenAI
-import os
+from openai import OpenAI, APIError, AuthenticationError, RateLimitError, APIConnectionError
+import logging
+from .config import get_model_config
+
+logger = logging.getLogger(__name__)
 
 class ApiClient:
-    def __init__(self, api_key):
+    def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
+        self.config = get_model_config()
 
-    def transcribe(self, audio_path):
+    def transcribe(self, audio_path: str) -> str:
+        model = self.config.get("transcription_model", "whisper-1")
         try:
             with open(audio_path, "rb") as audio_file:
                 transcription = self.client.audio.transcriptions.create(
-                    model="whisper-1", 
+                    model=model, 
                     file=audio_file,
                     language="ru"
                 )
             return transcription.text
+        except AuthenticationError:
+            logger.error("Authentication failed. Check API Key.")
+            return "Error: Invalid API Key"
+        except RateLimitError:
+            logger.error("Rate limit exceeded.")
+            return "Error: Rate Limit Exceeded"
+        except APIConnectionError:
+            logger.error("Network connection error.")
+            return "Error: No Connection"
+        except APIError as e:
+            logger.error(f"OpenAI API Error: {e}")
+            return f"Error: API Error"
         except Exception as e:
-            error_msg = str(e)
-            print(f"Transcription error: {error_msg}")
-            if "AuthenticationError" in error_msg or "Incorrect API key" in error_msg:
-                return "Error: Invalid API Key"
-            elif "RateLimitError" in error_msg:
-                return "Error: Rate Limit Exceeded"
-            elif "ConnectionError" in error_msg:
-                return "Error: No Connection"
+            logger.exception(f"Unexpected error during transcription: {e}")
             return f"Error: Transcription Failed"
 
-    def correct_text(self, text, previous_messages=[], system_prompt=None, context_chars=3000):
+    def correct_text(self, text: str, previous_messages: list = [], system_prompt: str = None, context_chars: int = 3000) -> str:
+        model = self.config.get("correction_model", "gpt-4o-mini")
         try:
             # Default prompt
             if not system_prompt:
@@ -61,10 +72,10 @@ class ApiClient:
             ]
 
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model,
                 messages=messages
             )
             return response.choices[0].message.content
         except Exception as e:
-            print(f"Correction error: {e}")
+            logger.exception(f"Correction error: {e}")
             return text

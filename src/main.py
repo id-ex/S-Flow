@@ -2,13 +2,17 @@ import sys
 import os
 import threading
 import json
+import logging
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import pyqtSignal, QObject, QThread, QTimer, Qt
 from dotenv import load_dotenv, set_key
 
-# Enhance search path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Logging setup is handled in config or here. 
+# Since we updated config to have setup_logging, let's use it.
+# Check if we can import from core first. 
+# If running as script, explicit imports without sys.path hack work usually if in same dir, 
+# but if src is root, 'from core' works.
 
 from ui.overlay import StatusOverlay
 from ui.settings_dialog import SettingsDialog
@@ -16,12 +20,14 @@ from core.audio_recorder import AudioRecorder
 from core.hotkey_manager import HotkeyManager
 from core.api_client import ApiClient
 from core.text_process import TextProcessor
-from core.config import get_openai_key, load_settings, save_settings_file
+from core.config import get_openai_key, load_settings, save_settings_file, setup_logging, get_model_config
+
+logger = logging.getLogger(__name__)
 
 class ProcessingWorker(QThread):
     finished = pyqtSignal(str, str) # raw_text, corrected_text
     
-    def __init__(self, api_client, audio_path, history, system_prompt, context_chars):
+    def __init__(self, api_client: ApiClient, audio_path: str, history: list, system_prompt: str, context_chars: int):
         super().__init__()
         self.api_client = api_client
         self.audio_path = audio_path
@@ -30,13 +36,19 @@ class ProcessingWorker(QThread):
         self.context_chars = context_chars
         
     def run(self):
-        raw_text = self.api_client.transcribe(self.audio_path)
-        if raw_text and not raw_text.startswith("Error"):
-            corrected_text = self.api_client.correct_text(raw_text, self.history, self.system_prompt, self.context_chars)
-            self.finished.emit(raw_text, corrected_text)
-        else:
-            # Pass the error string directly
-            self.finished.emit("", raw_text if raw_text else "Error: Unknown")
+        try:
+            logger.info("Transcribing audio...")
+            raw_text = self.api_client.transcribe(self.audio_path)
+            
+            if raw_text and not raw_text.startswith("Error"):
+                logger.info(f"Transcription result: {raw_text[:50]}...")
+                corrected_text = self.api_client.correct_text(raw_text, self.history, self.system_prompt, self.context_chars)
+                self.finished.emit(raw_text, corrected_text)
+            else:
+                self.finished.emit("", raw_text if raw_text else "Error: Transcription failed")
+        except Exception as e:
+            logger.exception("Worker thread error")
+            self.finished.emit("", "Error: Internal Failure")
 
 class AppController(QObject):
     def __init__(self, app):
@@ -75,6 +87,7 @@ class AppController(QObject):
         self.tray_icon.show()
         
         self.overlay.show_message("S-Flow Ready", duration=2000)
+        logger.info("Application started")
 
     def open_settings(self):
         # Current API Key could be obscured or retrieved
@@ -85,6 +98,7 @@ class AppController(QObject):
                 self.settings["hotkey"] = dialog.new_hotkey
                 save_settings_file(self.settings)
                 self.hotkey_manager.update_hotkey(dialog.new_hotkey)
+                logger.info(f"Hotkey updated to {dialog.new_hotkey}")
                 
             # Update API Key
             if dialog.new_api_key != self.api_key:
@@ -97,6 +111,7 @@ class AppController(QObject):
                 # Update runtime
                 self.api_key = dialog.new_api_key
                 self.api_client = ApiClient(self.api_key)
+                logger.info("API Key updated")
                 
             self.overlay.show_message("Settings Saved", duration=2000)
 
@@ -109,6 +124,7 @@ class AppController(QObject):
                 self.process_audio(audio_path)
             else:
                 self.overlay.hide_overlay()
+                logger.warning("Recording stopped but no audio path returned")
         else:
             # Start
             self.audio_recorder.start_recording()
@@ -131,17 +147,22 @@ class AppController(QObject):
             self.history.append({'text': corrected_text, 'is_bot': True})
             
             TextProcessor.paste_text(corrected_text)
+            logger.info("Processing finished successfully")
         else:
             # Show specific error from worker
             error_text = corrected_text if corrected_text.startswith("Error") else "Error: Unknown"
             self.overlay.show_message(error_text, duration=3000)
+            logger.error(f"Processing failed: {error_text}")
             
     def quit_app(self):
+        logger.info("Quitting application")
         self.hotkey_manager.stop()
         self.app.quit()
 
 def main():
+    setup_logging()
     load_dotenv()
+    
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     

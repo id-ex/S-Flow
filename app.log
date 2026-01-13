@@ -1,0 +1,18 @@
+2026-01-13 17:03:08,165 - __main__ - INFO - Application started
+2026-01-13 17:03:21,965 - core.audio_recorder - INFO - Recording started...
+2026-01-13 17:03:25,642 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 17:03:25,648 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpppg9klsw.wav
+2026-01-13 17:03:25,653 - __main__ - INFO - Transcribing audio...
+2026-01-13 17:03:26,485 - openai._base_client - INFO - Retrying request to /audio/transcriptions in 0.460973 seconds
+2026-01-13 17:03:26,951 - openai._base_client - INFO - Retrying request to /audio/transcriptions in 0.825292 seconds
+2026-01-13 17:03:27,779 - core.api_client - ERROR - Network connection error.
+2026-01-13 17:03:27,784 - __main__ - ERROR - Processing failed: Error: No Connection
+2026-01-13 17:03:34,702 - core.audio_recorder - INFO - Recording started...
+2026-01-13 17:03:38,655 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 17:03:38,659 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmp_bvvdqxd.wav
+2026-01-13 17:03:38,665 - __main__ - INFO - Transcribing audio...
+2026-01-13 17:03:40,838 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 17:03:40,843 - __main__ - INFO - Transcription result: Тест приложения....
+2026-01-13 17:03:41,744 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 17:03:41,992 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 17:03:41,996 - __main__ - INFO - Processing finished successfully

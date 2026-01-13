@@ -1,8 +1,20 @@
 import os
 import json
 import sys
+import logging
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings.json")
+LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "app.log")
+
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(LOG_PATH, encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
 
 def load_settings():
     try:
@@ -27,3 +39,11 @@ def get_openai_key():
     if not key:
         print("Warning: OPENAI_API_KEY not found in environment variables.")
     return key
+
+def get_model_config(settings=None):
+    if settings is None:
+        settings = load_settings()
+    return {
+        "transcription_model": settings.get("transcription_model", "whisper-1"),
+        "correction_model": settings.get("correction_model", "gpt-4o-mini")
+    }
