@@ -47,7 +47,8 @@ class SettingsDialog(QDialog):
         self.new_api_key = current_api_key
         self.new_lang = current_lang
         
-        self.setWindowTitle(tr("settings_title"))
+        from core.config import APP_VERSION
+        self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon("assets/icon.png"))
         self.setWindowIcon(QIcon("assets/icon.png"))
         self.setFixedSize(400, 450) # Increased height

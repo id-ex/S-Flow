@@ -92,7 +92,8 @@ class AppController(QObject):
         logger.info(f"Application started (Language: {lang})")
 
     def update_tray_menu(self):
-        self.tray_icon.setToolTip(tr("app_name"))
+        from core.config import APP_VERSION
+        self.tray_icon.setToolTip(f"{tr('app_name')} v{APP_VERSION}")
         menu = QMenu()
         
         settings_action = QAction(tr("menu_settings"), self.app)
