@@ -15,7 +15,7 @@
     "api_key_label": "OpenAI API Key:",
     "language_label": "Язык / Language:",
     "save_btn": "Сохранить",
-    "cancel_btn": "Отмена",
+    "logs_btn": "Просмотр логов",
     "error_title": "Ошибка",
     "error_empty_hotkey": "Хоткей не может быть пустым",
     "error_empty_api": "API Key не может быть пустым",

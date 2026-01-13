@@ -306,10 +306,18 @@ class AppController(QObject):
 
 def main():
     setup_logging()
+    
+    # Single instance check
+    import ctypes
+    mutex_name = "Global\\S-Flow-Single-Instance-Mutex"
+    mutex = ctypes.windll.kernel32.CreateMutexW(None, False, mutex_name)
+    if ctypes.windll.kernel32.GetLastError() == 183: # ERROR_ALREADY_EXISTS
+        logger.warning("Another instance is already running. Exiting.")
+        return
+
     load_dotenv()
     
     # Set AppUserModelID for Windows Taskbar Icon
-    import ctypes
     myappid = 'sflow.recognition.app.1.0' # arbitrary string
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     

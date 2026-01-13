@@ -269,3 +269,45 @@
 2026-01-13 18:31:43,821 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2026-01-13 18:31:44,050 - core.text_process - INFO - Text pasted via keyboard simulation.
 2026-01-13 18:31:44,054 - __main__ - INFO - Processing finished successfully
+2026-01-13 19:52:44,523 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 19:52:45,636 - __main__ - INFO - Application started (Language: ru)
+2026-01-13 19:52:53,674 - root - INFO - Autostart enabled: "d:\Projects\stt_recognition\S-Flow\dist\S-Flow.exe"
+2026-01-13 19:52:53,693 - __main__ - INFO - Startup setting updated to True
+2026-01-13 19:53:09,562 - core.audio_recorder - INFO - Recording started...
+2026-01-13 19:53:17,468 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 19:53:17,477 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpbn3qvo91.wav
+2026-01-13 19:53:17,483 - __main__ - INFO - Transcribing audio...
+2026-01-13 19:53:21,424 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 19:53:21,427 - __main__ - INFO - Transcription result: А если галочку убрать, то программа уберется из ав...
+2026-01-13 19:53:22,287 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 19:53:22,511 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 19:53:22,516 - __main__ - INFO - Processing finished successfully
+2026-01-13 19:53:47,229 - root - INFO - Autostart disabled
+2026-01-13 19:53:47,239 - __main__ - INFO - Startup setting updated to False
+2026-01-13 19:54:04,479 - core.audio_recorder - INFO - Recording started...
+2026-01-13 19:54:08,628 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 19:54:08,634 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpimlspxpl.wav
+2026-01-13 19:54:08,640 - __main__ - INFO - Transcribing audio...
+2026-01-13 19:54:10,716 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 19:54:10,717 - __main__ - INFO - Transcription result: Сделай, пожалуйста, git commit....
+2026-01-13 19:54:12,807 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 19:54:13,032 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 19:54:13,036 - __main__ - INFO - Processing finished successfully
+2026-01-13 19:55:03,598 - core.audio_recorder - INFO - Recording started...
+2026-01-13 19:55:20,797 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 19:55:20,805 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpk6bbt0r6.wav
+2026-01-13 19:55:20,809 - __main__ - INFO - Transcribing audio...
+2026-01-13 19:55:25,300 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 19:55:25,304 - __main__ - INFO - Transcription result: Теперь изменение в окне настроек. Вместо кнопки от...
+2026-01-13 19:55:27,711 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 19:55:27,926 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 19:55:27,929 - __main__ - INFO - Processing finished successfully
+2026-01-13 20:03:04,924 - __main__ - INFO - Quitting application
+2026-01-13 20:03:09,799 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 20:03:11,039 - __main__ - INFO - Application started (Language: ru)
+2026-01-13 20:03:58,685 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 20:03:58,687 - __main__ - INFO - Language updated to en
+2026-01-13 20:04:22,733 - __main__ - INFO - Quitting application
+2026-01-13 20:06:05,336 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 20:06:06,570 - __main__ - INFO - Application started (Language: en)
+2026-01-13 20:06:28,587 - __main__ - INFO - Quitting application

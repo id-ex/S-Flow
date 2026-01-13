@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
 import os
 from core.locale_manager import tr
-from core.config import get_resource_path
+from core.config import get_resource_path, LOG_PATH
 
 class HotkeyEdit(QLineEdit):
     def __init__(self, text: str = "", parent=None):
@@ -64,15 +64,15 @@ class SettingsDialog(QDialog):
         self.hotkey_input = HotkeyEdit(current_hotkey)
         self.layout.addWidget(self.hotkey_input)
 
-        # Cancel Hotkey
-        self.layout.addWidget(QLabel(tr("cancel_hotkey_label")))
-        self.cancel_hotkey_input = HotkeyEdit(cancel_hotkey)
-        self.layout.addWidget(self.cancel_hotkey_input)
-
         # Translation Hotkey
         self.layout.addWidget(QLabel(tr("translation_hotkey_label")))
         self.translation_hotkey_input = HotkeyEdit(translation_hotkey)
         self.layout.addWidget(self.translation_hotkey_input)
+
+        # Cancel Hotkey
+        self.layout.addWidget(QLabel(tr("cancel_hotkey_label")))
+        self.cancel_hotkey_input = HotkeyEdit(cancel_hotkey)
+        self.layout.addWidget(self.cancel_hotkey_input)
         
         # API Key
         self.layout.addWidget(QLabel(tr("api_key_label")))
@@ -111,11 +111,12 @@ class SettingsDialog(QDialog):
         btn_layout = QHBoxLayout()
         save_btn = QPushButton(tr("save_btn"))
         save_btn.clicked.connect(self.save_settings)
-        cancel_btn = QPushButton(tr("cancel_btn"))
-        cancel_btn.clicked.connect(self.reject)
+        
+        logs_btn = QPushButton(tr("logs_btn"))
+        logs_btn.clicked.connect(self.open_logs)
         
         btn_layout.addWidget(save_btn)
-        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(logs_btn)
         self.layout.addLayout(btn_layout)
         
         self.load_styles()
@@ -151,3 +152,9 @@ class SettingsDialog(QDialog):
         self.new_user_context = new_user_context
         self.new_startup = new_startup
         self.accept()
+
+    def open_logs(self):
+        if os.path.exists(LOG_PATH):
+            os.startfile(LOG_PATH)
+        else:
+            QMessageBox.information(self, tr("app_name"), "Log file not found yet.")
