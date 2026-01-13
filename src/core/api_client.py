@@ -6,8 +6,10 @@ from .config import get_model_config, MAX_RETRIES, RETRY_DELAY
 logger = logging.getLogger(__name__)
 
 class ApiClient:
-    def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, api_key: str = None):
+        self.client = None
+        if api_key:
+            self.client = OpenAI(api_key=api_key)
         self.config = get_model_config()
 
     def _execute_with_retry(self, func, *args, **kwargs):
@@ -35,6 +37,8 @@ class ApiClient:
         model = self.config.get("transcription_model", "whisper-1")
         
         def _call_api():
+            if not self.client:
+                raise AuthenticationError("API Key not set", None, None)
             with open(audio_path, "rb") as audio_file:
                 return self.client.audio.transcriptions.create(
                     model=model, 
@@ -115,6 +119,8 @@ class ApiClient:
             ]
 
             def _call_chat():
+                if not self.client:
+                    raise Exception("Error: Invalid API Key")
                 return self.client.chat.completions.create(
                     model=model,
                     messages=messages

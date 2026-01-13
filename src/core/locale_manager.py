@@ -19,10 +19,8 @@ class LocaleManager:
     def load_locale(self, lang_code: str):
         self.current_lang = lang_code
         try:
-            locale_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                "assets", "locales", f"{lang_code}.json"
-            )
+            from .config import get_resource_path
+            locale_path = get_resource_path(os.path.join("assets", "locales", f"{lang_code}.json"))
             if os.path.exists(locale_path):
                 with open(locale_path, "r", encoding="utf-8") as f:
                     self.translations = json.load(f)

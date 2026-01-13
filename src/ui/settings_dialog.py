@@ -3,6 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
 import os
 from core.locale_manager import tr
+from core.config import get_resource_path
 
 class HotkeyEdit(QLineEdit):
     def __init__(self, text: str = "", parent=None):
@@ -50,8 +51,7 @@ class SettingsDialog(QDialog):
         
         from core.config import APP_VERSION
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
-        self.setWindowIcon(QIcon("assets/icon.png"))
-        self.setWindowIcon(QIcon("assets/icon.png"))
+        self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
         self.setFixedSize(400, 520) # Increased height more
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) 
         
@@ -115,7 +115,7 @@ class SettingsDialog(QDialog):
         self.load_styles()
 
     def load_styles(self):
-        style_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "style.qss")
+        style_path = get_resource_path(os.path.join("assets", "style.qss"))
         if os.path.exists(style_path):
             with open(style_path, "r", encoding="utf-8") as f:
                 self.setStyleSheet(f.read())

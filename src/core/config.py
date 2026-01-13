@@ -3,9 +3,24 @@ import json
 import sys
 import logging
 
-SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings.json")
-LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "app.log")
-APP_VERSION = "1.3.0"
+def get_app_dir():
+    """Returns the directory where the executable or script is located."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller."""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    return os.path.join(base_path, relative_path)
+
+SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
+LOG_PATH = os.path.join(get_app_dir(), "app.log")
+APP_VERSION = "1.4.0"
 
 # Retry Configuration
 MAX_RETRIES = 3

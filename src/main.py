@@ -14,7 +14,7 @@ from core.audio_recorder import AudioRecorder
 from core.hotkey_manager import HotkeyManager
 from core.api_client import ApiClient
 from core.text_process import TextProcessor
-from core.config import get_openai_key, load_settings, save_settings_file, setup_logging, get_model_config
+from core.config import get_openai_key, load_settings, save_settings_file, setup_logging, get_model_config, get_resource_path, get_app_dir
 from core.locale_manager import tr, set_language, get_current_language
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class AppController(QObject):
         self.overlay = StatusOverlay()
         
         # API & Logic
-        self.api_client = ApiClient(self.api_key)
+        self.api_client = ApiClient(self.api_key) if self.api_key else ApiClient()
         self.audio_recorder = AudioRecorder()
         
         # Activation Hotkey
@@ -92,7 +92,7 @@ class AppController(QObject):
         self.current_mode = "correction" # or "translation"
 
         # System Tray
-        self.tray_icon = QSystemTrayIcon(QIcon("assets/icon.png"), self.app)
+        self.tray_icon = QSystemTrayIcon(QIcon(get_resource_path("assets/icon.ico")), self.app)
         self.update_tray_menu()
         self.tray_icon.show()
         
@@ -147,7 +147,7 @@ class AppController(QObject):
                 
             # Update API Key
             if dialog.new_api_key != self.api_key:
-                env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+                env_path = os.path.join(get_app_dir(), ".env")
                 if not os.path.exists(env_path):
                      with open(env_path, "w") as f: f.write("")
                 set_key(env_path, "OPENAI_API_KEY", dialog.new_api_key)
@@ -307,7 +307,7 @@ def main():
     
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
-    app.setWindowIcon(QIcon("assets/icon.png"))
+    app.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
     
     controller = AppController(app)
     

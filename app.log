@@ -233,3 +233,39 @@
 2026-01-13 18:18:30,140 - __main__ - INFO - Quitting application
 2026-01-13 18:23:06,325 - core.locale_manager - INFO - Loaded locale: en
 2026-01-13 18:23:40,059 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 18:25:28,249 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 18:25:29,492 - __main__ - INFO - Application started (Language: en)
+2026-01-13 18:25:41,997 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:25:46,665 - __main__ - INFO - Cancellation requested.
+2026-01-13 18:25:46,699 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:25:46,704 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpia2gnf7g.wav
+2026-01-13 18:25:46,705 - __main__ - INFO - Recording cancelled. File C:\Users\scr89\AppData\Local\Temp\tmpia2gnf7g.wav discarded/ignored.
+2026-01-13 18:25:52,604 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:26:13,783 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:26:13,788 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpznahtnai.wav
+2026-01-13 18:26:13,795 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:26:18,749 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:26:18,753 - __main__ - INFO - Transcription result: Если вы хорошо знаете JavaScript, пишите на Node.j...
+2026-01-13 18:26:21,808 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:26:22,039 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:26:22,039 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:27:44,289 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:28:03,383 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:28:03,392 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmps8cqv8hj.wav
+2026-01-13 18:28:03,401 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:28:07,277 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:28:07,281 - __main__ - INFO - Transcription result: Если вы хорошо знаете JavaScript, пишите на Node.j...
+2026-01-13 18:28:08,840 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:28:09,061 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:28:09,067 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:30:11,436 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 18:30:11,442 - __main__ - INFO - Language updated to ru
+2026-01-13 18:31:29,754 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:31:39,662 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:31:39,668 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpslnabzbs.wav
+2026-01-13 18:31:39,681 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:31:42,619 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:31:42,620 - __main__ - INFO - Transcription result: что нужно чтобы упаковать это приложение в экзешни...
+2026-01-13 18:31:43,821 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:31:44,050 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:31:44,054 - __main__ - INFO - Processing finished successfully
