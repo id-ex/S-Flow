@@ -231,3 +231,5 @@
 2026-01-13 18:18:19,384 - core.text_process - INFO - Text pasted via keyboard simulation.
 2026-01-13 18:18:19,387 - __main__ - INFO - Processing finished successfully
 2026-01-13 18:18:30,140 - __main__ - INFO - Quitting application
+2026-01-13 18:23:06,325 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 18:23:40,059 - core.locale_manager - INFO - Loaded locale: en
