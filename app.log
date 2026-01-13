@@ -311,3 +311,15 @@
 2026-01-13 20:06:05,336 - core.locale_manager - INFO - Loaded locale: en
 2026-01-13 20:06:06,570 - __main__ - INFO - Application started (Language: en)
 2026-01-13 20:06:28,587 - __main__ - INFO - Quitting application
+2026-01-13 21:21:57,626 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 21:21:58,780 - __main__ - INFO - Application started (Language: en)
+2026-01-13 21:22:04,891 - core.audio_recorder - INFO - Recording started...
+2026-01-13 21:22:05,871 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 21:22:05,878 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpjiy6izzl.wav
+2026-01-13 21:22:05,884 - __main__ - INFO - Transcribing audio...
+2026-01-13 21:22:07,720 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 21:22:07,723 - __main__ - INFO - Transcription result: Редактор субтитров А.Синецкая Корректор А.Егорова...
+2026-01-13 21:22:08,878 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 21:22:09,103 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 21:22:09,113 - __main__ - INFO - Processing finished successfully
+2026-01-13 21:22:34,622 - __main__ - INFO - Quitting application
