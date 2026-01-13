@@ -29,5 +29,6 @@
     "canceling": "Canceling...",
     "canceled": "Canceled",
     "translating": "Translating...",
-    "translation_hotkey_label": "Translation Hotkey:"
+    "translation_hotkey_label": "Translation Hotkey:",
+    "startup_label": "Start with Windows"
 }

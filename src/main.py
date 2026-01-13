@@ -14,7 +14,7 @@ from core.audio_recorder import AudioRecorder
 from core.hotkey_manager import HotkeyManager
 from core.api_client import ApiClient
 from core.text_process import TextProcessor
-from core.config import get_openai_key, load_settings, save_settings_file, setup_logging, get_model_config, get_resource_path, get_app_dir
+from core.config import get_openai_key, load_settings, save_settings_file, setup_logging, get_model_config, get_resource_path, get_app_dir, set_autostart
 from core.locale_manager import tr, set_language, get_current_language
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,8 @@ class AppController(QObject):
             self.api_key, 
             current_lang,
             self.settings.get("cancel_hotkey", "ctrl+alt+x"),
-            self.settings.get("translation_hotkey", "ctrl+alt+t")
+            self.settings.get("translation_hotkey", "ctrl+alt+t"),
+            self.settings.get("startup", False)
         )
         # Manually set context because we passed None as parent
         dialog.context_input.setPlainText(self.settings.get("user_context", ""))
@@ -176,6 +177,13 @@ class AppController(QObject):
                  self.settings["user_context"] = dialog.new_user_context
                  logger.info("User context updated")
                  changes = True
+                 
+            # Update Startup
+            if dialog.new_startup != self.settings.get("startup", False):
+                self.settings["startup"] = dialog.new_startup
+                set_autostart(dialog.new_startup)
+                logger.info(f"Startup setting updated to {dialog.new_startup}")
+                changes = True
 
             if changes:
                 save_settings_file(self.settings)

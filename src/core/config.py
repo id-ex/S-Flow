@@ -67,3 +67,49 @@ def get_model_config(settings=None):
         "transcription_model": settings.get("transcription_model", "whisper-1"),
         "correction_model": settings.get("correction_model", "gpt-4o-mini")
     }
+
+def set_autostart(enabled: bool):
+    """Sets or removes the application from Windows startup registry."""
+    import winreg
+    app_name = "S-Flow"
+    
+    root_dir = get_app_dir()
+    
+    if getattr(sys, 'frozen', False):
+        # We are running as an EXE
+        app_path = f'"{sys.executable}"'
+    else:
+        # We are running as Python script. 
+        # But if the user wants the "EXE" to start, we look for it.
+        potential_exe_dist = os.path.join(root_dir, "dist", "S-Flow.exe")
+        potential_exe_root = os.path.join(root_dir, "S-Flow.exe")
+        
+        if os.path.exists(potential_exe_dist):
+            app_path = f'"{potential_exe_dist}"'
+        elif os.path.exists(potential_exe_root):
+            app_path = f'"{potential_exe_root}"'
+        else:
+            # Fallback to current python command if no EXE found
+            main_script = os.path.join(root_dir, "src", "main.py")
+            if os.path.exists(main_script):
+                app_path = f'"{sys.executable}" "{main_script}"'
+            else:
+                app_path = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+    
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE)
+        if enabled:
+            winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, app_path)
+            logging.info(f"Autostart enabled: {app_path}")
+        else:
+            try:
+                winreg.DeleteValue(key, app_name)
+                logging.info("Autostart disabled")
+            except FileNotFoundError:
+                pass
+        winreg.CloseKey(key)
+        return True
+    except Exception as e:
+        logging.error(f"Error updating registry for autostart: {e}")
+        return False

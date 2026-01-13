@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget, QComboBox, QPlainTextEdit
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget, QComboBox, QPlainTextEdit, QCheckBox
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
 import os
@@ -41,18 +41,19 @@ class HotkeyEdit(QLineEdit):
         self.setText(final_hotkey)
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = "", current_lang: str = "ru", cancel_hotkey: str = "ctrl+alt+x", translation_hotkey: str = "ctrl+alt+t"):
+    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = "", current_lang: str = "ru", cancel_hotkey: str = "ctrl+alt+x", translation_hotkey: str = "ctrl+alt+t", current_startup: bool = False):
         super().__init__(parent)
         self.new_hotkey = current_hotkey
         self.new_cancel_hotkey = cancel_hotkey
         self.new_translation_hotkey = translation_hotkey
         self.new_api_key = current_api_key
         self.new_lang = current_lang
+        self.new_startup = current_startup
         
         from core.config import APP_VERSION
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-        self.setFixedSize(400, 520) # Increased height more
+        self.setFixedSize(400, 550) # Increased height for startup checkbox
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) 
         
         self.layout = QVBoxLayout()
@@ -100,6 +101,11 @@ class SettingsDialog(QDialog):
             self.lang_combo.setCurrentIndex(index)
             
         self.layout.addWidget(self.lang_combo)
+
+        # Startup
+        self.startup_check = QCheckBox(tr("startup_label"))
+        self.startup_check.setChecked(current_startup)
+        self.layout.addWidget(self.startup_check)
         
         # Buttons
         btn_layout = QHBoxLayout()
@@ -127,6 +133,7 @@ class SettingsDialog(QDialog):
         new_api_key = self.api_input.text().strip()
         new_lang = self.lang_combo.currentData()
         new_user_context = self.context_input.toPlainText().strip()
+        new_startup = self.startup_check.isChecked()
         
         if not new_hotkey:
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
@@ -142,4 +149,5 @@ class SettingsDialog(QDialog):
         self.new_api_key = new_api_key
         self.new_lang = new_lang
         self.new_user_context = new_user_context
+        self.new_startup = new_startup
         self.accept()

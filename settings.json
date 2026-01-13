@@ -9,5 +9,6 @@
     "correction_model": "gpt-4o-mini",
     "transcription_model": "whisper-1",
     "context_window_chars": 1000,
-    "user_context": "Programming, devops, ai prompt engenering."
+    "user_context": "Programming, devops, ai prompt engenering.",
+    "startup": false
 }
