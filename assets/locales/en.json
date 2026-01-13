@@ -15,7 +15,7 @@
     "settings_title": "S-Flow Settings",
     "hotkey_label": "Activation Hotkey:",
     "api_key_label": "OpenAI API Key:",
-    "language_label": "Language / Язык:",
+    "language_label": "Language:",
     "save_btn": "Save",
     "logs_btn": "View Logs",
     "error_title": "Error",

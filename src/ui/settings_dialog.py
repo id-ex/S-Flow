@@ -53,7 +53,7 @@ class SettingsDialog(QDialog):
         from core.config import APP_VERSION
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-        self.setFixedSize(400, 550) # Increased height for startup checkbox
+        self.setFixedSize(400, 520) # Reverted width after simplifying labels
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) 
         
         self.layout = QVBoxLayout()
@@ -89,23 +89,27 @@ class SettingsDialog(QDialog):
         self.context_input.setStyleSheet("QPlainTextEdit { background-color: #3d3d3d; color: white; border: 1px solid #555; border-radius: 5px; padding: 5px; font-family: 'Segoe UI'; } QPlainTextEdit:focus { border: 2px solid #0078D4; background-color: #454545; }")
         self.layout.addWidget(self.context_input)
 
-        # Language
-        self.layout.addWidget(QLabel(tr("language_label")))
+        # Language & Startup Row
+        lang_startup_layout = QHBoxLayout()
+        
+        lang_startup_layout.addWidget(QLabel(tr("language_label")))
         self.lang_combo = QComboBox()
         self.lang_combo.addItem("Русский", "ru")
         self.lang_combo.addItem("English", "en")
-        
-        # Set current index
         index = self.lang_combo.findData(current_lang)
         if index >= 0:
             self.lang_combo.setCurrentIndex(index)
-            
-        self.layout.addWidget(self.lang_combo)
-
-        # Startup
+        lang_startup_layout.addWidget(self.lang_combo)
+        
+        lang_startup_layout.addSpacing(10)
+        
         self.startup_check = QCheckBox(tr("startup_label"))
         self.startup_check.setChecked(current_startup)
-        self.layout.addWidget(self.startup_check)
+        lang_startup_layout.addWidget(self.startup_check)
+        
+        lang_startup_layout.addStretch()
+        
+        self.layout.addLayout(lang_startup_layout)
         
         # Buttons
         btn_layout = QHBoxLayout()

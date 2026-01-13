@@ -323,3 +323,33 @@
 2026-01-13 21:22:09,103 - core.text_process - INFO - Text pasted via keyboard simulation.
 2026-01-13 21:22:09,113 - __main__ - INFO - Processing finished successfully
 2026-01-13 21:22:34,622 - __main__ - INFO - Quitting application
+2026-01-13 22:21:06,564 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 22:21:07,725 - __main__ - INFO - Application started (Language: en)
+2026-01-13 22:23:04,265 - __main__ - INFO - Quitting application
+2026-01-13 22:23:09,743 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 22:23:10,992 - __main__ - INFO - Application started (Language: en)
+2026-01-13 22:23:31,825 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 22:23:31,837 - __main__ - INFO - Language updated to ru
+2026-01-13 22:25:12,850 - __main__ - INFO - Quitting application
+2026-01-13 22:25:20,817 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 22:25:21,997 - __main__ - INFO - Application started (Language: ru)
+2026-01-13 22:26:31,200 - __main__ - INFO - Quitting application
+2026-01-13 22:26:37,092 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 22:26:38,313 - __main__ - INFO - Application started (Language: ru)
+2026-01-13 22:26:45,078 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 22:26:45,091 - __main__ - INFO - Language updated to en
+2026-01-13 22:32:39,721 - core.audio_recorder - INFO - Recording started...
+2026-01-13 22:32:54,805 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 22:32:54,813 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpw0gkej0z.wav
+2026-01-13 22:32:54,821 - __main__ - INFO - Transcribing audio...
+2026-01-13 22:33:01,231 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 22:33:01,236 - __main__ - INFO - Transcription result: Есть ли модель Google с распознаванием речи по API...
+2026-01-13 22:33:03,097 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 22:33:03,325 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 22:33:03,329 - __main__ - INFO - Processing finished successfully
+2026-01-13 22:36:09,713 - __main__ - INFO - Quitting application
+2026-01-13 22:36:20,163 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 22:36:21,433 - __main__ - INFO - Application started (Language: en)
+2026-01-13 22:36:31,820 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 22:36:31,822 - __main__ - INFO - Language updated to ru
+2026-01-13 22:36:48,879 - __main__ - INFO - Quitting application
