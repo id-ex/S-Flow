@@ -40,10 +40,11 @@ class HotkeyEdit(QLineEdit):
         self.setText(final_hotkey)
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = "", current_lang: str = "ru", cancel_hotkey: str = "ctrl+alt+x"):
+    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = "", current_lang: str = "ru", cancel_hotkey: str = "ctrl+alt+x", translation_hotkey: str = "ctrl+alt+t"):
         super().__init__(parent)
         self.new_hotkey = current_hotkey
         self.new_cancel_hotkey = cancel_hotkey
+        self.new_translation_hotkey = translation_hotkey
         self.new_api_key = current_api_key
         self.new_lang = current_lang
         
@@ -51,7 +52,7 @@ class SettingsDialog(QDialog):
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon("assets/icon.png"))
         self.setWindowIcon(QIcon("assets/icon.png"))
-        self.setFixedSize(400, 450) # Increased height
+        self.setFixedSize(400, 520) # Increased height more
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) 
         
         self.layout = QVBoxLayout()
@@ -66,6 +67,11 @@ class SettingsDialog(QDialog):
         self.layout.addWidget(QLabel(tr("cancel_hotkey_label")))
         self.cancel_hotkey_input = HotkeyEdit(cancel_hotkey)
         self.layout.addWidget(self.cancel_hotkey_input)
+
+        # Translation Hotkey
+        self.layout.addWidget(QLabel(tr("translation_hotkey_label")))
+        self.translation_hotkey_input = HotkeyEdit(translation_hotkey)
+        self.layout.addWidget(self.translation_hotkey_input)
         
         # API Key
         self.layout.addWidget(QLabel(tr("api_key_label")))
@@ -117,6 +123,7 @@ class SettingsDialog(QDialog):
     def save_settings(self):
         new_hotkey = self.hotkey_input.text().strip()
         new_cancel_hotkey = self.cancel_hotkey_input.text().strip()
+        new_translation_hotkey = self.translation_hotkey_input.text().strip()
         new_api_key = self.api_input.text().strip()
         new_lang = self.lang_combo.currentData()
         new_user_context = self.context_input.toPlainText().strip()
@@ -131,6 +138,7 @@ class SettingsDialog(QDialog):
             
         self.new_hotkey = new_hotkey
         self.new_cancel_hotkey = new_cancel_hotkey
+        self.new_translation_hotkey = new_translation_hotkey
         self.new_api_key = new_api_key
         self.new_lang = new_lang
         self.new_user_context = new_user_context

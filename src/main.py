@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class ProcessingWorker(QThread):
     finished = pyqtSignal(str, str) # raw_text, corrected_text
     
-    def __init__(self, api_client: ApiClient, audio_path: str, history: list, system_prompt: str, context_chars: int, user_context: str = ""):
+    def __init__(self, api_client: ApiClient, audio_path: str, history: list, system_prompt: str, context_chars: int, user_context: str = "", is_translation: bool = False):
         super().__init__()
         self.api_client = api_client
         self.audio_path = audio_path
@@ -30,6 +30,7 @@ class ProcessingWorker(QThread):
         self.system_prompt = system_prompt
         self.context_chars = context_chars
         self.user_context = user_context
+        self.is_translation = is_translation
         
     def run(self):
         try:
@@ -43,7 +44,8 @@ class ProcessingWorker(QThread):
                     self.history, 
                     self.system_prompt, 
                     self.context_chars, 
-                    self.user_context
+                    self.user_context,
+                    is_translation=self.is_translation
                 )
                 self.finished.emit(raw_text, corrected_text)
             else:
@@ -73,8 +75,13 @@ class AppController(QObject):
         
         # Activation Hotkey
         self.hotkey_manager = HotkeyManager(self.settings.get("hotkey", "ctrl+alt+s"))
-        self.hotkey_manager.triggered.connect(self.toggle_recording)
+        self.hotkey_manager.triggered.connect(self.toggle_standard_recording)
         self.hotkey_manager.start()
+
+        # Translation Hotkey
+        self.translation_hotkey_manager = HotkeyManager(self.settings.get("translation_hotkey", "ctrl+alt+t"))
+        self.translation_hotkey_manager.triggered.connect(self.toggle_translation_recording)
+        self.translation_hotkey_manager.start()
 
         # Cancellation Hotkey
         self.cancel_hotkey_manager = HotkeyManager(self.settings.get("cancel_hotkey", "ctrl+alt+x"))
@@ -82,6 +89,7 @@ class AppController(QObject):
         self.cancel_hotkey_manager.start()
         
         self.history = []
+        self.current_mode = "correction" # or "translation"
 
         # System Tray
         self.tray_icon = QSystemTrayIcon(QIcon("assets/icon.png"), self.app)
@@ -114,7 +122,8 @@ class AppController(QObject):
             self.settings.get("hotkey", "ctrl+alt+s"), 
             self.api_key, 
             current_lang,
-            self.settings.get("cancel_hotkey", "ctrl+alt+x")
+            self.settings.get("cancel_hotkey", "ctrl+alt+x"),
+            self.settings.get("translation_hotkey", "ctrl+alt+t")
         )
         # Manually set context because we passed None as parent
         dialog.context_input.setPlainText(self.settings.get("user_context", ""))
@@ -145,6 +154,13 @@ class AppController(QObject):
                 self.api_key = dialog.new_api_key
                 self.api_client = ApiClient(self.api_key)
                 logger.info("API Key updated")
+                changes = True
+
+            # Update Translation Hotkey
+            if dialog.new_translation_hotkey != self.settings.get("translation_hotkey"):
+                self.settings["translation_hotkey"] = dialog.new_translation_hotkey
+                self.translation_hotkey_manager.update_hotkey(dialog.new_translation_hotkey)
+                logger.info(f"Translation Hotkey updated to {dialog.new_translation_hotkey}")
                 changes = True
                 
             # Update Language
@@ -186,6 +202,14 @@ class AppController(QObject):
             self.overlay.show_message(tr("canceled"), duration=1000)
             logger.info("Processing cancelled.")
 
+    def toggle_standard_recording(self):
+        self.current_mode = "correction"
+        self.toggle_recording()
+
+    def toggle_translation_recording(self):
+        self.current_mode = "translation"
+        self.toggle_recording()
+
     def toggle_recording(self):
         if self.is_processing:
             logger.warning("Already processing, ignore toggle")
@@ -195,7 +219,8 @@ class AppController(QObject):
             # Stop
             audio_path = self.audio_recorder.stop_recording()
             if audio_path:
-                self.overlay.show_message(tr("recognizing"), animate=True)
+                msg_key = "translating" if self.current_mode == "translation" else "recognizing"
+                self.overlay.show_message(tr(msg_key), animate=True)
                 self.process_audio(audio_path)
             else:
                 self.overlay.hide_overlay()
@@ -207,7 +232,11 @@ class AppController(QObject):
 
     def process_audio(self, audio_path):
         self.is_processing = True
-        prompt = self.settings.get("system_prompt", "")
+        is_translation = (self.current_mode == "translation")
+        
+        prompt_key = "translation_prompt" if is_translation else "system_prompt"
+        prompt = self.settings.get(prompt_key, "")
+        
         context_chars = self.settings.get("context_window_chars", 3000)
         user_context = self.settings.get("user_context", "")
         
@@ -217,7 +246,8 @@ class AppController(QObject):
             self.history, 
             prompt, 
             context_chars, 
-            user_context
+            user_context,
+            is_translation=is_translation
         )
         self.worker.finished.connect(self.on_processing_finished)
         self.worker.start()
@@ -262,6 +292,7 @@ class AppController(QObject):
     def quit_app(self):
         logger.info("Quitting application")
         self.hotkey_manager.stop()
+        self.translation_hotkey_manager.stop()
         self.cancel_hotkey_manager.stop()
         self.app.quit()
 

@@ -5,7 +5,7 @@ import logging
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings.json")
 LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "app.log")
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 
 # Retry Configuration
 MAX_RETRIES = 3

@@ -61,13 +61,23 @@ class ApiClient:
             logger.exception(f"Unexpected error during transcription: {e}")
             return f"Error: Transcription Failed"
 
-    def correct_text(self, text: str, previous_messages: list = [], system_prompt: str = None, context_chars: int = 3000, user_context: str = "") -> str:
+    def correct_text(self, text: str, previous_messages: list = [], system_prompt: str = None, context_chars: int = 3000, user_context: str = "", is_translation: bool = False) -> str:
         model = self.config.get("correction_model", "gpt-4o-mini")
         
         try:
-            # Default prompt
+            # Default prompt if none provided
             if not system_prompt:
-                system_prompt = "Ты — помощник, который исправляет распознанный текст."
+                if is_translation:
+                    system_prompt = (
+                        "Ты — профессиональный переводчик. Твоя задача — перевести предоставленный текст, сохраняя смысл и учитывая контекст.\n"
+                        "### КОНТЕКСТ ДИАЛОГА:\n{{history}}\n"
+                        "### ПРАВИЛА:\n"
+                        "- Если текст на русском, переведи его на английский.\n"
+                        "- Если текст на английском, переведи его на русский.\n"
+                        "- Верни ТОЛЬКО переведенный текст."
+                    )
+                else:
+                    system_prompt = "Ты — помощник, который исправляет распознанный текст. Контекст:\n{{history}}"
 
             # Construct context by chars
             history_text = ""
@@ -93,7 +103,7 @@ class ApiClient:
                 final_system_prompt = final_system_prompt.replace("{{history}}", history_text if history_text else "Нет контекста.")
             else:
                 if history_text:
-                    final_system_prompt += f"\n\nContext:\n{history_text}"
+                    final_system_prompt += f"\n\nContext History:\n{history_text}"
 
             # Inject User Context
             if user_context:
@@ -111,7 +121,7 @@ class ApiClient:
                 )
 
             response = self._execute_with_retry(_call_chat)
-            return response.choices[0].message.content
+            return response.choices[0].message.content.strip()
         except Exception as e:
             logger.exception(f"Correction error: {e}")
             return text

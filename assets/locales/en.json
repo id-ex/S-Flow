@@ -27,5 +27,7 @@
     "hotkey_placeholder": "Press key combination...",
     "cancel_hotkey_label": "Cancellation Hotkey (press to change):",
     "canceling": "Canceling...",
-    "canceled": "Canceled"
+    "canceled": "Canceled",
+    "translating": "Translating...",
+    "translation_hotkey_label": "Translation Hotkey:"
 }

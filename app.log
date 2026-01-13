@@ -165,3 +165,69 @@
 2026-01-13 18:04:29,956 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2026-01-13 18:04:30,210 - core.text_process - INFO - Text pasted via keyboard simulation.
 2026-01-13 18:04:30,213 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:06:34,514 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:07:31,833 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:07:31,855 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmp0fzfcfdc.wav
+2026-01-13 18:07:31,863 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:07:41,684 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:07:41,687 - __main__ - INFO - Transcription result: Давай добавим новую фичу, теперь по комбинации кла...
+2026-01-13 18:07:44,756 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:07:45,023 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:07:45,031 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:12:04,002 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:12:33,665 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:12:33,672 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpjo01iqj9.wav
+2026-01-13 18:12:33,680 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:12:38,690 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:12:38,691 - __main__ - INFO - Transcription result: Да, системный промпт ты добавил не туда, для роста...
+2026-01-13 18:12:40,141 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:12:40,366 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:12:40,367 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:14:50,349 - __main__ - INFO - Quitting application
+2026-01-13 18:15:03,769 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 18:15:04,961 - __main__ - INFO - Application started (Language: ru)
+2026-01-13 18:15:36,335 - core.locale_manager - INFO - Loaded locale: en
+2026-01-13 18:15:36,336 - __main__ - INFO - Language updated to en
+2026-01-13 18:15:53,163 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:16:11,913 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:16:11,921 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpehdhwwhh.wav
+2026-01-13 18:16:11,926 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:16:17,255 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:16:17,268 - __main__ - INFO - Transcription result: Все изменения синхронизированы с интерфейсом настр...
+2026-01-13 18:16:18,750 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:16:19,027 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:16:19,028 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:17:04,545 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:17:07,681 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:17:07,685 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpihlropm8.wav
+2026-01-13 18:17:07,690 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:17:09,578 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:17:09,580 - __main__ - INFO - Transcription result: Hello, how are you?...
+2026-01-13 18:17:10,378 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:17:10,658 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:17:10,658 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:17:17,879 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:17:25,635 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:17:25,640 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpcz7v6wtg.wav
+2026-01-13 18:17:25,648 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:17:30,591 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:17:30,594 - __main__ - INFO - Transcription result: Привет! Как дела? Что ты можешь мне рассказать сег...
+2026-01-13 18:17:31,761 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:17:32,011 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:17:32,013 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:18:04,852 - core.audio_recorder - INFO - Recording started...
+2026-01-13 18:18:11,113 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 18:18:11,120 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpak8wpwdw.wav
+2026-01-13 18:18:11,128 - __main__ - INFO - Transcribing audio...
+2026-01-13 18:18:11,164 - openai._base_client - INFO - Retrying request to /audio/transcriptions in 0.408770 seconds
+2026-01-13 18:18:11,576 - openai._base_client - INFO - Retrying request to /audio/transcriptions in 0.778245 seconds
+2026-01-13 18:18:12,360 - core.api_client - WARNING - Network/Rate error in _call_api (Attempt 1/3). Retrying in 1.0s...
+2026-01-13 18:18:13,368 - openai._base_client - INFO - Retrying request to /audio/transcriptions in 0.444527 seconds
+2026-01-13 18:18:13,818 - openai._base_client - INFO - Retrying request to /audio/transcriptions in 0.857556 seconds
+2026-01-13 18:18:14,680 - core.api_client - WARNING - Network/Rate error in _call_api (Attempt 2/3). Retrying in 2.0s...
+2026-01-13 18:18:18,338 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 18:18:18,341 - __main__ - INFO - Transcription result: Подними версию, сделай git commit...
+2026-01-13 18:18:19,095 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 18:18:19,384 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 18:18:19,387 - __main__ - INFO - Processing finished successfully
+2026-01-13 18:18:30,140 - __main__ - INFO - Quitting application
