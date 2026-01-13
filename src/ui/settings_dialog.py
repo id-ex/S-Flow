@@ -1,12 +1,13 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget, QComboBox
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
 import os
+from core.locale_manager import tr
 
 class HotkeyEdit(QLineEdit):
     def __init__(self, text: str = "", parent=None):
         super().__init__(text, parent)
-        self.setPlaceholderText("Нажмите сочетание клавиш...")
+        self.setPlaceholderText(tr("hotkey_placeholder"))
         self.setReadOnly(True) # Prevent manual typing, only capture
         
     def keyPressEvent(self, event: QKeyEvent):
@@ -39,35 +40,55 @@ class HotkeyEdit(QLineEdit):
         self.setText(final_hotkey)
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = ""):
+    def __init__(self, parent=None, current_hotkey: str = "", current_api_key: str = "", current_lang: str = "ru", cancel_hotkey: str = "ctrl+alt+x"):
         super().__init__(parent)
         self.new_hotkey = current_hotkey
+        self.new_cancel_hotkey = cancel_hotkey
         self.new_api_key = current_api_key
+        self.new_lang = current_lang
         
-        self.setWindowTitle("Настройки S-Flow")
+        self.setWindowTitle(tr("settings_title"))
         self.setWindowIcon(QIcon("assets/icon.png"))
-        self.setFixedSize(400, 200)
+        self.setFixedSize(400, 320)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) 
         
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         
         # Hotkey
-        self.layout.addWidget(QLabel("Клавиша активации (нажмите для изменения):"))
-        self.hotkey_input = HotkeyEdit(current_hotkey) # Use Custom Widget
+        self.layout.addWidget(QLabel(tr("hotkey_label")))
+        self.hotkey_input = HotkeyEdit(current_hotkey)
         self.layout.addWidget(self.hotkey_input)
+
+        # Cancel Hotkey
+        self.layout.addWidget(QLabel(tr("cancel_hotkey_label")))
+        self.cancel_hotkey_input = HotkeyEdit(cancel_hotkey)
+        self.layout.addWidget(self.cancel_hotkey_input)
         
         # API Key
-        self.layout.addWidget(QLabel("OpenAI API Key:"))
+        self.layout.addWidget(QLabel(tr("api_key_label")))
         self.api_input = QLineEdit(current_api_key)
         self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.layout.addWidget(self.api_input)
+
+        # Language
+        self.layout.addWidget(QLabel(tr("language_label")))
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItem("Русский", "ru")
+        self.lang_combo.addItem("English", "en")
+        
+        # Set current index
+        index = self.lang_combo.findData(current_lang)
+        if index >= 0:
+            self.lang_combo.setCurrentIndex(index)
+            
+        self.layout.addWidget(self.lang_combo)
         
         # Buttons
         btn_layout = QHBoxLayout()
-        save_btn = QPushButton("Сохранить")
+        save_btn = QPushButton(tr("save_btn"))
         save_btn.clicked.connect(self.save_settings)
-        cancel_btn = QPushButton("Отмена")
+        cancel_btn = QPushButton(tr("cancel_btn"))
         cancel_btn.clicked.connect(self.reject)
         
         btn_layout.addWidget(save_btn)
@@ -84,16 +105,20 @@ class SettingsDialog(QDialog):
 
     def save_settings(self):
         new_hotkey = self.hotkey_input.text().strip()
+        new_cancel_hotkey = self.cancel_hotkey_input.text().strip()
         new_api_key = self.api_input.text().strip()
+        new_lang = self.lang_combo.currentData()
         
         if not new_hotkey:
-            QMessageBox.warning(self, "Ошибка", "Хоткей не может быть пустым")
+            QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
             return
             
         if not new_api_key:
-            QMessageBox.warning(self, "Ошибка", "API Key не может быть пустым")
+            QMessageBox.warning(self, tr("error_title"), tr("error_empty_api"))
             return
             
         self.new_hotkey = new_hotkey
+        self.new_cancel_hotkey = new_cancel_hotkey
         self.new_api_key = new_api_key
+        self.new_lang = new_lang
         self.accept()

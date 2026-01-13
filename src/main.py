@@ -8,12 +8,6 @@ from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import pyqtSignal, QObject, QThread, QTimer, Qt
 from dotenv import load_dotenv, set_key
 
-# Logging setup is handled in config or here. 
-# Since we updated config to have setup_logging, let's use it.
-# Check if we can import from core first. 
-# If running as script, explicit imports without sys.path hack work usually if in same dir, 
-# but if src is root, 'from core' works.
-
 from ui.overlay import StatusOverlay
 from ui.settings_dialog import SettingsDialog
 from core.audio_recorder import AudioRecorder
@@ -21,6 +15,7 @@ from core.hotkey_manager import HotkeyManager
 from core.api_client import ApiClient
 from core.text_process import TextProcessor
 from core.config import get_openai_key, load_settings, save_settings_file, setup_logging, get_model_config
+from core.locale_manager import tr, set_language, get_current_language
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +40,10 @@ class ProcessingWorker(QThread):
                 corrected_text = self.api_client.correct_text(raw_text, self.history, self.system_prompt, self.context_chars)
                 self.finished.emit(raw_text, corrected_text)
             else:
-                self.finished.emit("", raw_text if raw_text else "Error: Transcription failed")
+                self.finished.emit("", raw_text if raw_text else tr("error_transcription"))
         except Exception as e:
             logger.exception("Worker thread error")
-            self.finished.emit("", "Error: Internal Failure")
+            self.finished.emit("", tr("error_unknown"))
 
 class AppController(QObject):
     def __init__(self, app):
@@ -56,6 +51,11 @@ class AppController(QObject):
         self.app = app
         self.settings = load_settings()
         self.api_key = get_openai_key()
+        self.is_processing = False
+        
+        # Initialize Locale
+        lang = self.settings.get("app_language", "ru")
+        set_language(lang)
         
         # UI Components
         self.overlay = StatusOverlay()
@@ -63,64 +63,123 @@ class AppController(QObject):
         # API & Logic
         self.api_client = ApiClient(self.api_key)
         self.audio_recorder = AudioRecorder()
+        
+        # Activation Hotkey
         self.hotkey_manager = HotkeyManager(self.settings.get("hotkey", "ctrl+alt+s"))
         self.hotkey_manager.triggered.connect(self.toggle_recording)
         self.hotkey_manager.start()
+
+        # Cancellation Hotkey
+        self.cancel_hotkey_manager = HotkeyManager(self.settings.get("cancel_hotkey", "ctrl+alt+x"))
+        self.cancel_hotkey_manager.triggered.connect(self.cancel_operation)
+        self.cancel_hotkey_manager.start()
         
         self.history = []
 
         # System Tray
         self.tray_icon = QSystemTrayIcon(QIcon("assets/icon.png"), self.app)
-        self.tray_icon.setToolTip("S-Flow")
+        self.update_tray_menu()
+        self.tray_icon.show()
         
-        # Menu
+        self.overlay.show_message(tr("ready"), duration=2000)
+        logger.info(f"Application started (Language: {lang})")
+
+    def update_tray_menu(self):
+        self.tray_icon.setToolTip(tr("app_name"))
         menu = QMenu()
-        settings_action = QAction("Settings", self.app)
+        
+        settings_action = QAction(tr("menu_settings"), self.app)
         settings_action.triggered.connect(self.open_settings)
-        quit_action = QAction("Quit", self.app)
+        
+        quit_action = QAction(tr("menu_quit"), self.app)
         quit_action.triggered.connect(self.quit_app)
         
         menu.addAction(settings_action)
         menu.addSeparator()
         menu.addAction(quit_action)
         self.tray_icon.setContextMenu(menu)
-        self.tray_icon.show()
-        
-        self.overlay.show_message("S-Flow Ready", duration=2000)
-        logger.info("Application started")
 
     def open_settings(self):
-        # Current API Key could be obscured or retrieved
-        dialog = SettingsDialog(None, self.settings.get("hotkey", "ctrl+alt+s"), self.api_key)
+        current_lang = get_current_language()
+        dialog = SettingsDialog(
+            None, 
+            self.settings.get("hotkey", "ctrl+alt+s"), 
+            self.api_key, 
+            current_lang,
+            self.settings.get("cancel_hotkey", "ctrl+alt+x")
+        )
+        
         if dialog.exec():
+            changes = False
+            
             # Update Hotkey
             if dialog.new_hotkey != self.settings.get("hotkey"):
                 self.settings["hotkey"] = dialog.new_hotkey
-                save_settings_file(self.settings)
                 self.hotkey_manager.update_hotkey(dialog.new_hotkey)
                 logger.info(f"Hotkey updated to {dialog.new_hotkey}")
+                changes = True
+
+            # Update Cancel Hotkey
+            if dialog.new_cancel_hotkey != self.settings.get("cancel_hotkey", ""):
+                self.settings["cancel_hotkey"] = dialog.new_cancel_hotkey
+                self.cancel_hotkey_manager.update_hotkey(dialog.new_cancel_hotkey)
+                logger.info(f"Cancel Hotkey updated to {dialog.new_cancel_hotkey}")
+                changes = True
                 
             # Update API Key
             if dialog.new_api_key != self.api_key:
-                # Save to .env
                 env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
                 if not os.path.exists(env_path):
                      with open(env_path, "w") as f: f.write("")
                 set_key(env_path, "OPENAI_API_KEY", dialog.new_api_key)
-                
-                # Update runtime
                 self.api_key = dialog.new_api_key
                 self.api_client = ApiClient(self.api_key)
                 logger.info("API Key updated")
+                changes = True
                 
-            self.overlay.show_message("Settings Saved", duration=2000)
+            # Update Language
+            if dialog.new_lang != current_lang:
+                self.settings["app_language"] = dialog.new_lang
+                set_language(dialog.new_lang)
+                self.update_tray_menu() # Refresh tray menu
+                logger.info(f"Language updated to {dialog.new_lang}")
+                changes = True
+
+            if changes:
+                save_settings_file(self.settings)
+                self.overlay.show_message(tr("settings_saved"), duration=2000)
+
+    def cancel_operation(self):
+        logger.info("Cancellation requested.")
+        
+        if self.audio_recorder.recording:
+            # Stop recording without processing
+            path = self.audio_recorder.stop_recording()
+            logger.info(f"Recording cancelled. File {path} discarded/ignored.")
+            self.overlay.show_message(tr("canceled"), duration=1000)
+            
+        elif self.is_processing:
+            # Invalidate current processing
+            # We can't kill the thread easily, but we can ignore result.
+            # Best way: set a flag or disconnect signal
+            try:
+                self.worker.finished.disconnect(self.on_processing_finished)
+            except:
+                pass
+            self.is_processing = False
+            self.overlay.show_message(tr("canceled"), duration=1000)
+            logger.info("Processing cancelled.")
 
     def toggle_recording(self):
+        if self.is_processing:
+            logger.warning("Already processing, ignore toggle")
+            return
+
         if self.audio_recorder.recording:
             # Stop
             audio_path = self.audio_recorder.stop_recording()
             if audio_path:
-                self.overlay.show_message("Recognizing...", animate=True)
+                self.overlay.show_message(tr("recognizing"), animate=True)
                 self.process_audio(audio_path)
             else:
                 self.overlay.hide_overlay()
@@ -128,9 +187,10 @@ class AppController(QObject):
         else:
             # Start
             self.audio_recorder.start_recording()
-            self.overlay.show_message("Recording...")
+            self.overlay.show_message(tr("recording_started"))
 
     def process_audio(self, audio_path):
+        self.is_processing = True
         prompt = self.settings.get("system_prompt", "")
         context_chars = self.settings.get("context_window_chars", 3000)
         self.worker = ProcessingWorker(self.api_client, audio_path, self.history, prompt, context_chars)
@@ -138,10 +198,11 @@ class AppController(QObject):
         self.worker.start()
         
     def on_processing_finished(self, raw_text, corrected_text):
+        self.is_processing = False
         self.overlay.hide_overlay()
         
         if raw_text and not corrected_text.startswith("Error"):
-            self.overlay.show_message("Done!", duration=1000)
+            self.overlay.show_message(tr("done"), duration=1000)
             
             # History
             self.history.append({'text': corrected_text, 'is_bot': True})
@@ -150,21 +211,47 @@ class AppController(QObject):
             logger.info("Processing finished successfully")
         else:
             # Show specific error from worker
-            error_text = corrected_text if corrected_text.startswith("Error") else "Error: Unknown"
+            # Check if it is a localized error key or raw error
+            # For now, worker returns localized strings for known errors
+            error_text = corrected_text 
+            
+            # If startswith Error: and not known key... simplistic check
+            # Realistically, api_client should return keys or we map them here. 
+            # But api_client string returns are mixed.
+            # Let's map common ones if they match exactly
+            
+            map_errors = {
+                "Error: Invalid API Key": "error_auth",
+                "Error: Rate Limit Exceeded": "error_rate_limit",
+                "Error: No Connection": "error_connection",
+                "Error: Transcription Failed": "error_transcription",
+                "Error: Unknown": "error_unknown"
+            }
+            
+            if error_text in map_errors:
+                error_text = tr(map_errors[error_text])
+            
             self.overlay.show_message(error_text, duration=3000)
             logger.error(f"Processing failed: {error_text}")
             
     def quit_app(self):
         logger.info("Quitting application")
         self.hotkey_manager.stop()
+        self.cancel_hotkey_manager.stop()
         self.app.quit()
 
 def main():
     setup_logging()
     load_dotenv()
     
+    # Set AppUserModelID for Windows Taskbar Icon
+    import ctypes
+    myappid = 'sflow.recognition.app.1.0' # arbitrary string
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    app.setWindowIcon(QIcon("assets/icon.png"))
     
     controller = AppController(app)
     
