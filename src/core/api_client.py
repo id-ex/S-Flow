@@ -61,7 +61,7 @@ class ApiClient:
             logger.exception(f"Unexpected error during transcription: {e}")
             return f"Error: Transcription Failed"
 
-    def correct_text(self, text: str, previous_messages: list = [], system_prompt: str = None, context_chars: int = 3000) -> str:
+    def correct_text(self, text: str, previous_messages: list = [], system_prompt: str = None, context_chars: int = 3000, user_context: str = "") -> str:
         model = self.config.get("correction_model", "gpt-4o-mini")
         
         try:
@@ -85,13 +85,19 @@ class ApiClient:
             
             history_text = "\n".join(context_messages)
             
-            # Inject history
-            if "{{history}}" in system_prompt:
-                final_system_prompt = system_prompt.replace("{{history}}", history_text if history_text else "Нет контекста.")
+            # Use Base Prompt
+            final_system_prompt = system_prompt
+            
+            # Inject History
+            if "{{history}}" in final_system_prompt:
+                final_system_prompt = final_system_prompt.replace("{{history}}", history_text if history_text else "Нет контекста.")
             else:
-                final_system_prompt = system_prompt
                 if history_text:
                     final_system_prompt += f"\n\nContext:\n{history_text}"
+
+            # Inject User Context
+            if user_context:
+                final_system_prompt += f"\n\n[USER CONTEXT: {user_context}]"
 
             messages = [
                 {"role": "system", "content": final_system_prompt},

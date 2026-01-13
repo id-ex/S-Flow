@@ -22,13 +22,14 @@ logger = logging.getLogger(__name__)
 class ProcessingWorker(QThread):
     finished = pyqtSignal(str, str) # raw_text, corrected_text
     
-    def __init__(self, api_client: ApiClient, audio_path: str, history: list, system_prompt: str, context_chars: int):
+    def __init__(self, api_client: ApiClient, audio_path: str, history: list, system_prompt: str, context_chars: int, user_context: str = ""):
         super().__init__()
         self.api_client = api_client
         self.audio_path = audio_path
         self.history = history
         self.system_prompt = system_prompt
         self.context_chars = context_chars
+        self.user_context = user_context
         
     def run(self):
         try:
@@ -37,7 +38,13 @@ class ProcessingWorker(QThread):
             
             if raw_text and not raw_text.startswith("Error"):
                 logger.info(f"Transcription result: {raw_text[:50]}...")
-                corrected_text = self.api_client.correct_text(raw_text, self.history, self.system_prompt, self.context_chars)
+                corrected_text = self.api_client.correct_text(
+                    raw_text, 
+                    self.history, 
+                    self.system_prompt, 
+                    self.context_chars, 
+                    self.user_context
+                )
                 self.finished.emit(raw_text, corrected_text)
             else:
                 self.finished.emit("", raw_text if raw_text else tr("error_transcription"))
@@ -108,6 +115,8 @@ class AppController(QObject):
             current_lang,
             self.settings.get("cancel_hotkey", "ctrl+alt+x")
         )
+        # Manually set context because we passed None as parent
+        dialog.context_input.setPlainText(self.settings.get("user_context", ""))
         
         if dialog.exec():
             changes = False
@@ -144,6 +153,12 @@ class AppController(QObject):
                 self.update_tray_menu() # Refresh tray menu
                 logger.info(f"Language updated to {dialog.new_lang}")
                 changes = True
+
+            # Update User Context
+            if dialog.new_user_context != self.settings.get("user_context", ""):
+                 self.settings["user_context"] = dialog.new_user_context
+                 logger.info("User context updated")
+                 changes = True
 
             if changes:
                 save_settings_file(self.settings)
@@ -193,7 +208,16 @@ class AppController(QObject):
         self.is_processing = True
         prompt = self.settings.get("system_prompt", "")
         context_chars = self.settings.get("context_window_chars", 3000)
-        self.worker = ProcessingWorker(self.api_client, audio_path, self.history, prompt, context_chars)
+        user_context = self.settings.get("user_context", "")
+        
+        self.worker = ProcessingWorker(
+            self.api_client, 
+            audio_path, 
+            self.history, 
+            prompt, 
+            context_chars, 
+            user_context
+        )
         self.worker.finished.connect(self.on_processing_finished)
         self.worker.start()
         

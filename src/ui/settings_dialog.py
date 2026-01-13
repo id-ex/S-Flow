@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget, QComboBox
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QMessageBox, QWidget, QComboBox, QPlainTextEdit
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
 import os
@@ -49,7 +49,8 @@ class SettingsDialog(QDialog):
         
         self.setWindowTitle(tr("settings_title"))
         self.setWindowIcon(QIcon("assets/icon.png"))
-        self.setFixedSize(400, 320)
+        self.setWindowIcon(QIcon("assets/icon.png"))
+        self.setFixedSize(400, 450) # Increased height
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) 
         
         self.layout = QVBoxLayout()
@@ -70,6 +71,15 @@ class SettingsDialog(QDialog):
         self.api_input = QLineEdit(current_api_key)
         self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.layout.addWidget(self.api_input)
+
+        # User Context
+        self.layout.addWidget(QLabel(tr("context_label")))
+        self.context_input = QPlainTextEdit(parent.settings.get("user_context", "") if parent else "")
+        self.context_input.setPlaceholderText(tr("context_placeholder"))
+        self.context_input.setFixedHeight(80)
+        # Manually styling for now to match
+        self.context_input.setStyleSheet("QPlainTextEdit { background-color: #3d3d3d; color: white; border: 1px solid #555; border-radius: 5px; padding: 5px; font-family: 'Segoe UI'; } QPlainTextEdit:focus { border: 2px solid #0078D4; background-color: #454545; }")
+        self.layout.addWidget(self.context_input)
 
         # Language
         self.layout.addWidget(QLabel(tr("language_label")))
@@ -108,6 +118,7 @@ class SettingsDialog(QDialog):
         new_cancel_hotkey = self.cancel_hotkey_input.text().strip()
         new_api_key = self.api_input.text().strip()
         new_lang = self.lang_combo.currentData()
+        new_user_context = self.context_input.toPlainText().strip()
         
         if not new_hotkey:
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
@@ -121,4 +132,5 @@ class SettingsDialog(QDialog):
         self.new_cancel_hotkey = new_cancel_hotkey
         self.new_api_key = new_api_key
         self.new_lang = new_lang
+        self.new_user_context = new_user_context
         self.accept()

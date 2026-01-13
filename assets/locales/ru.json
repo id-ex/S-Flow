@@ -11,7 +11,7 @@
     "error_rate_limit": "Ошибка: Превышен лимит запросов",
     "error_auth": "Ошибка: Неверный API Key",
     "settings_title": "Настройки S-Flow",
-    "hotkey_label": "Клавиша активации (нажмите для изменения):",
+    "hotkey_label": "Комбинация клавиш активации:",
     "api_key_label": "OpenAI API Key:",
     "language_label": "Язык / Language:",
     "save_btn": "Сохранить",
@@ -23,7 +23,9 @@
     "menu_settings": "Настройки",
     "menu_quit": "Выход",
     "hotkey_placeholder": "Нажмите сочетание клавиш...",
-    "cancel_hotkey_label": "Клавиша отмены (нажмите для изменения):",
+    "cancel_hotkey_label": "Комбинация клавиш отмены:",
     "canceling": "Отмена...",
-    "canceled": "Отменено"
+    "canceled": "Отменено",
+    "context_label": "Контекст деятельности (темы, термины):",
+    "context_placeholder": "Например: программирование на Python, медицинские термины, гейминг..."
 }

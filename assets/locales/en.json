@@ -1,4 +1,6 @@
 {
+    "context_label": "User Context (topics, terms):",
+    "context_placeholder": "E.g., Python programming, medical terms, gaming...",
     "app_name": "S-Flow",
     "ready": "S-Flow Ready",
     "recording_started": "Recording...",
