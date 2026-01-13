@@ -16,3 +16,23 @@
 2026-01-13 17:03:41,744 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2026-01-13 17:03:41,992 - core.text_process - INFO - Text pasted via keyboard simulation.
 2026-01-13 17:03:41,996 - __main__ - INFO - Processing finished successfully
+2026-01-13 17:09:20,288 - core.audio_recorder - INFO - Recording started...
+2026-01-13 17:09:42,555 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 17:09:42,570 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpbc8ijrey.wav
+2026-01-13 17:09:42,578 - __main__ - INFO - Transcribing audio...
+2026-01-13 17:09:47,728 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 17:09:47,729 - __main__ - INFO - Transcription result: Теперь нужно добавить грамотную обработку ошибок, ...
+2026-01-13 17:09:49,073 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 17:09:49,324 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 17:09:49,325 - __main__ - INFO - Processing finished successfully
+2026-01-13 17:18:34,975 - __main__ - INFO - Quitting application
+2026-01-13 17:18:49,309 - __main__ - INFO - Application started
+2026-01-13 17:18:54,186 - core.audio_recorder - INFO - Recording started...
+2026-01-13 17:19:01,818 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 17:19:01,828 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpf9xr87e9.wav
+2026-01-13 17:19:01,840 - __main__ - INFO - Transcribing audio...
+2026-01-13 17:19:06,349 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 17:19:06,361 - __main__ - INFO - Transcription result: 1, 2, 3, 4, 5, тест распознавания и обработки ошиб...
+2026-01-13 17:19:07,366 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 17:19:07,648 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 17:19:07,649 - __main__ - INFO - Processing finished successfully

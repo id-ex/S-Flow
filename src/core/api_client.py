@@ -1,6 +1,7 @@
 from openai import OpenAI, APIError, AuthenticationError, RateLimitError, APIConnectionError
 import logging
-from .config import get_model_config
+import time
+from .config import get_model_config, MAX_RETRIES, RETRY_DELAY
 
 logger = logging.getLogger(__name__)
 
@@ -9,15 +10,40 @@ class ApiClient:
         self.client = OpenAI(api_key=api_key)
         self.config = get_model_config()
 
+    def _execute_with_retry(self, func, *args, **kwargs):
+        """
+        Executes a function with exponential backoff retry logic.
+        """
+        retries = 0
+        while retries <= MAX_RETRIES:
+            try:
+                return func(*args, **kwargs)
+            except (RateLimitError, APIConnectionError) as e:
+                retries += 1
+                if retries > MAX_RETRIES:
+                    logger.error(f"Max retries exceeded for {func.__name__}: {e}")
+                    raise e
+                
+                wait_time = RETRY_DELAY * (2 ** (retries - 1))
+                logger.warning(f"Network/Rate error in {func.__name__} (Attempt {retries}/{MAX_RETRIES}). Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            except Exception as e:
+                # Other errors: do not retry
+                raise e
+
     def transcribe(self, audio_path: str) -> str:
         model = self.config.get("transcription_model", "whisper-1")
-        try:
+        
+        def _call_api():
             with open(audio_path, "rb") as audio_file:
-                transcription = self.client.audio.transcriptions.create(
+                return self.client.audio.transcriptions.create(
                     model=model, 
                     file=audio_file,
                     language="ru"
                 )
+
+        try:
+            transcription = self._execute_with_retry(_call_api)
             return transcription.text
         except AuthenticationError:
             logger.error("Authentication failed. Check API Key.")
@@ -37,6 +63,7 @@ class ApiClient:
 
     def correct_text(self, text: str, previous_messages: list = [], system_prompt: str = None, context_chars: int = 3000) -> str:
         model = self.config.get("correction_model", "gpt-4o-mini")
+        
         try:
             # Default prompt
             if not system_prompt:
@@ -71,10 +98,13 @@ class ApiClient:
                 {"role": "user", "content": text}
             ]
 
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages
-            )
+            def _call_chat():
+                return self.client.chat.completions.create(
+                    model=model,
+                    messages=messages
+                )
+
+            response = self._execute_with_retry(_call_chat)
             return response.choices[0].message.content
         except Exception as e:
             logger.exception(f"Correction error: {e}")

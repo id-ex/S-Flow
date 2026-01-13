@@ -6,6 +6,10 @@ import logging
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings.json")
 LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "app.log")
 
+# Retry Configuration
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0
+
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,

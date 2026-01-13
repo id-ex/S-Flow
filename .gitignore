@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+app.log
+
+# Build
+dist/
+build/
+*.spec
+
+# S-Flow specific
+*.wav
