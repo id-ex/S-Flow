@@ -116,11 +116,17 @@ class AppController(QObject):
         self.tray_icon.setContextMenu(menu)
 
     def open_settings(self):
+        # Stop all hotkeys to prevent triggering while typing in settings
+        self.hotkey_manager.stop()
+        self.translation_hotkey_manager.stop()
+        self.cancel_hotkey_manager.stop()
+        logger.info("Hotkeys stopped for settings dialog")
+
         current_lang = get_current_language()
         dialog = SettingsDialog(
-            None, 
-            self.settings.get("hotkey", "ctrl+alt+s"), 
-            self.api_key, 
+            None,
+            self.settings.get("hotkey", "ctrl+alt+s"),
+            self.api_key,
             current_lang,
             self.settings.get("cancel_hotkey", "ctrl+alt+x"),
             self.settings.get("translation_hotkey", "ctrl+alt+t"),
@@ -128,24 +134,24 @@ class AppController(QObject):
         )
         # Manually set context because we passed None as parent
         dialog.context_input.setPlainText(self.settings.get("user_context", ""))
-        
+
         if dialog.exec():
             changes = False
-            
+
             # Update Hotkey
             if dialog.new_hotkey != self.settings.get("hotkey"):
                 self.settings["hotkey"] = dialog.new_hotkey
-                self.hotkey_manager.update_hotkey(dialog.new_hotkey)
+                self.hotkey_manager.combination = dialog.new_hotkey  # Update combination
                 logger.info(f"Hotkey updated to {dialog.new_hotkey}")
                 changes = True
 
             # Update Cancel Hotkey
             if dialog.new_cancel_hotkey != self.settings.get("cancel_hotkey", ""):
                 self.settings["cancel_hotkey"] = dialog.new_cancel_hotkey
-                self.cancel_hotkey_manager.update_hotkey(dialog.new_cancel_hotkey)
+                self.cancel_hotkey_manager.combination = dialog.new_cancel_hotkey  # Update combination
                 logger.info(f"Cancel Hotkey updated to {dialog.new_cancel_hotkey}")
                 changes = True
-                
+
             # Update API Key
             if dialog.new_api_key != self.api_key:
                 env_path = os.path.join(get_app_dir(), ".env")
@@ -160,10 +166,10 @@ class AppController(QObject):
             # Update Translation Hotkey
             if dialog.new_translation_hotkey != self.settings.get("translation_hotkey"):
                 self.settings["translation_hotkey"] = dialog.new_translation_hotkey
-                self.translation_hotkey_manager.update_hotkey(dialog.new_translation_hotkey)
+                self.translation_hotkey_manager.combination = dialog.new_translation_hotkey  # Update combination
                 logger.info(f"Translation Hotkey updated to {dialog.new_translation_hotkey}")
                 changes = True
-                
+
             # Update Language
             if dialog.new_lang != current_lang:
                 self.settings["app_language"] = dialog.new_lang
@@ -177,7 +183,7 @@ class AppController(QObject):
                  self.settings["user_context"] = dialog.new_user_context
                  logger.info("User context updated")
                  changes = True
-                 
+
             # Update Startup
             if dialog.new_startup != self.settings.get("startup", False):
                 self.settings["startup"] = dialog.new_startup
@@ -189,23 +195,31 @@ class AppController(QObject):
                 save_settings_file(self.settings)
                 self.overlay.show_message(tr("settings_saved"), duration=2000)
 
+        # Restart hotkeys after dialog closes (regardless of Save/Cancel)
+        self.hotkey_manager.start()
+        self.translation_hotkey_manager.start()
+        self.cancel_hotkey_manager.start()
+        logger.info("Hotkeys restarted after settings dialog")
+
     def cancel_operation(self):
         logger.info("Cancellation requested.")
-        
+
         if self.audio_recorder.recording:
             # Stop recording without processing
             path = self.audio_recorder.stop_recording()
             logger.info(f"Recording cancelled. File {path} discarded/ignored.")
             self.overlay.show_message(tr("canceled"), duration=1000)
-            
+
         elif self.is_processing:
             # Invalidate current processing
             # We can't kill the thread easily, but we can ignore result.
             # Best way: set a flag or disconnect signal
             try:
                 self.worker.finished.disconnect(self.on_processing_finished)
-            except:
-                pass
+            except (TypeError, RuntimeError) as e:
+                # TypeError: signal not connected
+                # RuntimeError: signal disconnect failed (wrapped C++ object deleted)
+                logger.debug(f"Signal disconnect warning: {e}")
             self.is_processing = False
             self.overlay.show_message(tr("canceled"), duration=1000)
             logger.info("Processing cancelled.")
@@ -315,7 +329,7 @@ def main():
         logger.warning("Another instance is already running. Exiting.")
         return
 
-    load_dotenv()
+    load_dotenv(os.path.join(get_app_dir(), ".env"))
     
     # Set AppUserModelID for Windows Taskbar Icon
     myappid = 'sflow.recognition.app.1.0' # arbitrary string

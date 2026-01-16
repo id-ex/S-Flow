@@ -10,8 +10,9 @@ import queue
 logger = logging.getLogger(__name__)
 
 class AudioRecorder:
-    def __init__(self, sample_rate: int = 44100):
+    def __init__(self, sample_rate: int = 44100, channels: int = 1):
         self.sample_rate = sample_rate
+        self.channels = channels
         self.recording = False
         self.audio_queue = queue.Queue()
         self.stream = None
@@ -31,9 +32,9 @@ class AudioRecorder:
 
         try:
             self.stream = sd.InputStream(
-                samplerate=self.sample_rate, 
-                channels=1, 
-                dtype='int16', 
+                samplerate=self.sample_rate,
+                channels=self.channels,
+                dtype='int16',
                 callback=callback
             )
             self.stream.start()

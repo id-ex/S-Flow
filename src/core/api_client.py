@@ -35,21 +35,22 @@ class ApiClient:
 
     def transcribe(self, audio_path: str) -> str:
         model = self.config.get("transcription_model", "whisper-1")
-        
+        language = self.config.get("transcription_language", "ru")
+
         def _call_api():
             if not self.client:
-                raise AuthenticationError("API Key not set", None, None)
+                raise ValueError("API Key not set")
             with open(audio_path, "rb") as audio_file:
                 return self.client.audio.transcriptions.create(
-                    model=model, 
+                    model=model,
                     file=audio_file,
-                    language="ru"
+                    language=language
                 )
 
         try:
             transcription = self._execute_with_retry(_call_api)
             return transcription.text
-        except AuthenticationError:
+        except (AuthenticationError, ValueError):
             logger.error("Authentication failed. Check API Key.")
             return "Error: Invalid API Key"
         except RateLimitError:
@@ -120,7 +121,7 @@ class ApiClient:
 
             def _call_chat():
                 if not self.client:
-                    raise Exception("Error: Invalid API Key")
+                    raise ValueError("API Key not set")
                 return self.client.chat.completions.create(
                     model=model,
                     messages=messages

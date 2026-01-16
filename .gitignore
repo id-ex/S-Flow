@@ -25,3 +25,9 @@ build/
 
 # S-Flow specific
 *.wav
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover

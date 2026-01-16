@@ -14,11 +14,11 @@ class HotkeyEdit(QLineEdit):
     def keyPressEvent(self, event: QKeyEvent):
         key = event.key()
         modifiers = event.modifiers()
-        
+
         if key == Qt.Key.Key_Backspace or key == Qt.Key.Key_Delete:
             self.clear()
             return
-            
+
         # Ignore modifier-only presses
         if key in (Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt, Qt.Key.Key_Meta):
             return
@@ -31,12 +31,18 @@ class HotkeyEdit(QLineEdit):
             keys.append("alt")
         if modifiers & Qt.KeyboardModifier.ShiftModifier:
             keys.append("shift")
-            
-        # Get key text (e.g. 'S', 'F1')
-        key_text = QKeySequence(key).toString().lower()
+
+        # Get key text - use event.text() for alphanumeric keys (better for Ctrl+Alt+letter combos)
+        # Otherwise use QKeySequence for special keys (F1, space, etc.)
+        key_text = event.text().lower()
+
+        # If event.text() is empty or not a simple character, use QKeySequence
+        if not key_text or not key_text.isalnum():
+            key_text = QKeySequence(key).toString().lower()
+
         if key_text:
             keys.append(key_text)
-            
+
         final_hotkey = "+".join(keys)
         self.setText(final_hotkey)
 
