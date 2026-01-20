@@ -353,3 +353,173 @@
 2026-01-13 22:36:31,820 - core.locale_manager - INFO - Loaded locale: ru
 2026-01-13 22:36:31,822 - __main__ - INFO - Language updated to ru
 2026-01-13 22:36:48,879 - __main__ - INFO - Quitting application
+2026-01-13 23:06:26,287 - __main__ - WARNING - Another instance is already running. Exiting.
+2026-01-13 23:06:41,489 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 23:07:43,207 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-13 23:07:44,384 - __main__ - INFO - Application started (Language: ru)
+2026-01-13 23:07:55,687 - core.audio_recorder - INFO - Recording started...
+2026-01-13 23:07:58,597 - core.audio_recorder - INFO - Recording stopped.
+2026-01-13 23:07:58,603 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpf5pjx6jc.wav
+2026-01-13 23:07:58,615 - __main__ - INFO - Transcribing audio...
+2026-01-13 23:08:01,549 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-13 23:08:01,557 - __main__ - INFO - Transcription result: Раз, два, три, раз, два, три....
+2026-01-13 23:08:02,277 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-13 23:08:02,527 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-13 23:08:02,528 - __main__ - INFO - Processing finished successfully
+2026-01-13 23:08:15,568 - __main__ - INFO - Quitting application
+2026-01-17 03:03:47,152 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-17 03:52:35,390 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-17 03:52:36,640 - __main__ - INFO - Application started (Language: ru)
+2026-01-17 03:52:48,670 - __main__ - INFO - Hotkey updated to ctrl+alt+a
+2026-01-17 03:52:54,999 - core.audio_recorder - INFO - Recording started...
+2026-01-17 03:52:58,027 - core.audio_recorder - INFO - Recording stopped.
+2026-01-17 03:52:58,032 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmp2n35t4m7.wav
+2026-01-17 03:52:58,045 - __main__ - INFO - Transcribing audio...
+2026-01-17 03:53:01,898 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-17 03:53:01,908 - __main__ - INFO - Transcription result: Продолжение следует......
+2026-01-17 03:53:03,424 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-17 03:53:03,691 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-17 03:53:03,691 - __main__ - INFO - Processing finished successfully
+2026-01-17 04:00:29,906 - __main__ - INFO - Quitting application
+2026-01-17 04:17:26,532 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-17 04:17:27,665 - __main__ - INFO - Application started (Language: ru)
+2026-01-17 04:17:32,234 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-17 04:17:59,920 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-17 04:18:04,059 - __main__ - INFO - Quitting application
+2026-01-21 00:23:14,936 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 00:23:16,190 - __main__ - INFO - Application started (Language: ru)
+2026-01-21 00:23:19,671 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 00:23:29,806 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 00:23:35,936 - __main__ - INFO - Quitting application
+2026-01-21 00:24:13,077 - core.config - WARNING - OPENAI_API_KEY not found in environment variables.
+2026-01-21 00:24:13,079 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 00:24:13,282 - __main__ - INFO - Application started (Language: ru)
+2026-01-21 00:24:14,283 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 00:24:40,021 - __main__ - INFO - API Key updated
+2026-01-21 00:24:40,025 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 00:24:54,572 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 00:25:00,574 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 00:25:06,253 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 00:25:18,992 - __main__ - INFO - Hotkey updated to alt+a
+2026-01-21 00:25:19,019 - __main__ - INFO - Cancel Hotkey updated to alt+c
+2026-01-21 00:25:19,020 - __main__ - INFO - Translation Hotkey updated to alt+t
+2026-01-21 00:25:19,023 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 00:25:26,502 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 00:25:26,536 - core.audio_recorder - INFO - Recording started...
+2026-01-21 00:25:29,462 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 00:25:29,501 - core.audio_recorder - INFO - Recording stopped.
+2026-01-21 00:25:29,503 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmplckz99kk.wav
+2026-01-21 00:25:29,515 - __main__ - INFO - Transcribing audio...
+2026-01-21 00:25:33,561 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-21 00:25:33,576 - __main__ - INFO - Transcription result: Раз, два, три, четыре, пять....
+2026-01-21 00:25:35,211 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-21 00:25:35,516 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-21 00:25:35,517 - __main__ - INFO - Processing finished successfully
+2026-01-21 00:25:55,863 - __main__ - INFO - Quitting application
+2026-01-21 01:11:19,082 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 01:11:20,145 - __main__ - INFO - Application started (Language: ru)
+2026-01-21 01:14:53,670 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 01:14:59,286 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 01:15:07,760 - __main__ - INFO - Quitting application
+2026-01-21 01:19:59,113 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 01:20:00,236 - __main__ - INFO - Application started (Language: ru)
+2026-01-21 01:20:03,219 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 01:20:07,735 - core.locale_manager - INFO - Loaded locale: en
+2026-01-21 01:20:07,739 - __main__ - INFO - Language updated to en
+2026-01-21 01:20:07,753 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 01:20:40,236 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 01:20:44,267 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 01:20:47,116 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 01:20:52,480 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 01:20:52,482 - __main__ - INFO - Language updated to ru
+2026-01-21 01:20:52,488 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 01:20:56,091 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 01:20:59,205 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 01:21:05,836 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:21:05,904 - core.audio_recorder - INFO - Recording started...
+2026-01-21 01:21:10,067 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:21:10,096 - core.audio_recorder - INFO - Recording stopped.
+2026-01-21 01:21:10,101 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmp_pe_xknx.wav
+2026-01-21 01:21:10,107 - __main__ - INFO - Transcribing audio...
+2026-01-21 01:21:13,047 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-21 01:21:13,063 - __main__ - INFO - Transcription result: Раз, два, три, четыре, пять. Вышел зайчик погулять...
+2026-01-21 01:21:15,297 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-21 01:21:15,559 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-21 01:21:15,562 - __main__ - INFO - Processing finished successfully
+2026-01-21 01:21:39,076 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:21:39,120 - core.audio_recorder - INFO - Recording started...
+2026-01-21 01:21:48,404 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:21:48,457 - core.audio_recorder - INFO - Recording stopped.
+2026-01-21 01:21:48,471 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpi00x3cbi.wav
+2026-01-21 01:21:48,478 - __main__ - INFO - Transcribing audio...
+2026-01-21 01:21:51,088 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-21 01:21:51,091 - __main__ - INFO - Transcription result: Рогозин показал обломки дронов ВСУ, атаковавших эн...
+2026-01-21 01:21:52,215 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-21 01:21:52,470 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-21 01:21:52,471 - __main__ - INFO - Processing finished successfully
+2026-01-21 01:22:04,811 - core.hotkey_manager - INFO - Hotkey alt+t triggered
+2026-01-21 01:22:04,832 - core.audio_recorder - INFO - Recording started...
+2026-01-21 01:22:16,267 - core.hotkey_manager - INFO - Hotkey alt+t triggered
+2026-01-21 01:22:16,318 - core.audio_recorder - INFO - Recording stopped.
+2026-01-21 01:22:16,328 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmp3awmejzh.wav
+2026-01-21 01:22:16,333 - __main__ - INFO - Transcribing audio...
+2026-01-21 01:22:18,790 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-21 01:22:18,793 - __main__ - INFO - Transcription result: Рогозин показал обломки дронов СУ, атаковавших эне...
+2026-01-21 01:22:20,620 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-21 01:22:20,861 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-21 01:22:20,862 - __main__ - INFO - Processing finished successfully
+2026-01-21 01:59:00,118 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 01:59:01,254 - __main__ - INFO - Application started (Language: ru)
+2026-01-21 01:59:07,021 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/id-ex/S-Flow/releases/latest "HTTP/1.1 404 Not Found"
+2026-01-21 01:59:07,022 - core.update_manager - ERROR - GitHub API returned 404
+2026-01-21 01:59:07,022 - __main__ - ERROR - Update error: GitHub API Error: 404
+2026-01-21 01:59:07,408 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/id-ex/S-Flow/releases/latest "HTTP/1.1 404 Not Found"
+2026-01-21 01:59:07,411 - core.update_manager - ERROR - GitHub API returned 404
+2026-01-21 01:59:19,055 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:59:19,178 - core.audio_recorder - INFO - Recording started...
+2026-01-21 01:59:21,839 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:59:21,882 - core.audio_recorder - INFO - Recording stopped.
+2026-01-21 01:59:21,889 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpx4cjq4sh.wav
+2026-01-21 01:59:21,896 - __main__ - INFO - Transcribing audio...
+2026-01-21 01:59:24,512 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-21 01:59:24,526 - __main__ - INFO - Transcription result: Редактор субтитров А.Синецкая Корректор А.Егорова...
+2026-01-21 01:59:26,023 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-21 01:59:26,285 - core.text_process - INFO - Text pasted via keyboard simulation.
+2026-01-21 01:59:26,289 - __main__ - INFO - Processing finished successfully
+2026-01-21 01:59:35,367 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 01:59:38,697 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 01:59:40,508 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/id-ex/S-Flow/releases/latest "HTTP/1.1 404 Not Found"
+2026-01-21 01:59:40,510 - core.update_manager - ERROR - GitHub API returned 404
+2026-01-21 01:59:40,511 - __main__ - ERROR - Update error: GitHub API Error: 404
+2026-01-21 01:59:44,143 - core.hotkey_manager - INFO - Hotkey alt+c triggered
+2026-01-21 01:59:44,146 - __main__ - INFO - Cancellation requested.
+2026-01-21 01:59:45,866 - core.hotkey_manager - INFO - Hotkey alt+c triggered
+2026-01-21 01:59:45,870 - __main__ - INFO - Cancellation requested.
+2026-01-21 01:59:47,079 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:59:47,104 - core.audio_recorder - INFO - Recording started...
+2026-01-21 01:59:47,335 - core.hotkey_manager - INFO - Hotkey alt+a triggered
+2026-01-21 01:59:47,379 - core.audio_recorder - INFO - Recording stopped.
+2026-01-21 01:59:47,382 - core.audio_recorder - INFO - Audio saved to C:\Users\scr89\AppData\Local\Temp\tmpk5cn2um5.wav
+2026-01-21 01:59:47,387 - __main__ - INFO - Transcribing audio...
+2026-01-21 01:59:48,287 - core.hotkey_manager - INFO - Hotkey alt+c triggered
+2026-01-21 01:59:48,288 - __main__ - INFO - Cancellation requested.
+2026-01-21 01:59:48,299 - __main__ - INFO - Processing cancelled.
+2026-01-21 01:59:48,558 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-21 01:59:48,561 - __main__ - INFO - Transcription result: Редактор субтитров А.Синецкая Корректор А.Егорова...
+2026-01-21 01:59:50,631 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-21 01:59:59,797 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 02:00:09,768 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 02:00:17,199 - __main__ - INFO - Quitting application
+2026-01-21 02:11:18,619 - core.locale_manager - INFO - Loaded locale: ru
+2026-01-21 02:11:19,731 - __main__ - INFO - Application started (Language: ru)
+2026-01-21 02:11:25,364 - __main__ - INFO - Hotkeys stopped for settings dialog
+2026-01-21 02:11:26,146 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/id-ex/S-Flow/releases/latest "HTTP/1.1 404 Not Found"
+2026-01-21 02:11:26,147 - core.update_manager - ERROR - GitHub API returned 404
+2026-01-21 02:11:29,386 - __main__ - INFO - Hotkeys restarted after settings dialog
+2026-01-21 02:11:43,396 - httpx - INFO - HTTP Request: GET https://api.github.com/repos/id-ex/S-Flow/releases/latest "HTTP/1.1 404 Not Found"
+2026-01-21 02:11:43,398 - core.update_manager - ERROR - GitHub API returned 404
+2026-01-21 02:11:43,399 - __main__ - ERROR - Update error: GitHub API Error: 404
+2026-01-21 02:11:52,725 - core.hotkey_manager - INFO - Hotkey alt+c triggered
+2026-01-21 02:11:52,727 - __main__ - INFO - Cancellation requested.
+2026-01-21 02:11:54,069 - core.hotkey_manager - INFO - Hotkey alt+c triggered
+2026-01-21 02:11:54,072 - __main__ - INFO - Cancellation requested.

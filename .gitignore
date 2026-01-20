@@ -22,11 +22,13 @@ app.log
 dist/
 build/
 *.spec
+build_log.txt
 
 # S-Flow specific
 *.wav
 settings.json
 stats.json
+app.log
 
 # Testing
 .pytest_cache/
