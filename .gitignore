@@ -25,9 +25,18 @@ build/
 
 # S-Flow specific
 *.wav
+settings.json
+stats.json
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
 *.cover
+
+# AI Agents (Claude Code, etc.)
+.claude/
+AGENTS.md
+CLAUDE.md
+.env*
+! .env.example

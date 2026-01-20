@@ -3,6 +3,8 @@ import json
 import sys
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 def get_app_dir():
     """Returns the directory where the executable or script is located."""
@@ -23,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.7.0"
+APP_VERSION = "1.9.0"
 
 # Retry Configuration
 MAX_RETRIES = 3
@@ -47,7 +49,7 @@ def load_settings():
             with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
-        print(f"Error loading settings: {e}")
+        logger.error(f"Error loading settings: {e}")
     return {}
 
 
@@ -57,14 +59,14 @@ def save_settings_file(settings):
             json.dump(settings, f, indent=4, ensure_ascii=False)
         return True
     except Exception as e:
-        print(f"Error saving settings: {e}")
+        logger.error(f"Error saving settings: {e}")
         return False
 
 
 def get_openai_key():
     key = os.getenv("OPENAI_API_KEY")
     if not key:
-        print("Warning: OPENAI_API_KEY not found in environment variables.")
+        logger.warning("OPENAI_API_KEY not found in environment variables.")
     return key
 
 

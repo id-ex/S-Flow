@@ -112,6 +112,10 @@ No automated linting or type checking commands are currently configured. When ad
 - Windows registry operations for autostart (winreg)
 - Mutex for single-instance protection
 
+### Git
+- **Commit Messages**: Do NOT include any mention of "Claude Code", AI assistance, or automated generation in commit messages.
+- **Footers**: Do NOT include "Co-Authored-By: Claude" or similar attribution.
+
 ### Common Patterns
 - **Singleton**: LocaleManager uses `__new__` pattern
 - **Resource paths**: Always use `get_resource_path()` for files in assets/

@@ -177,13 +177,65 @@ class TestApiClient:
         client = ApiClient()
         assert client.client is None
 
-    def test_transcribe_no_client(self):
+    @patch('core.api_client.wave.open')
+    def test_transcribe_no_client(self, mock_wave_open):
         """Test transcription when client is not initialized"""
         from core.api_client import ApiClient
 
+        # Mock wave duration
+        mock_file = MagicMock()
+        mock_file.getnframes.return_value = 44100
+        mock_file.getframerate.return_value = 44100
+        mock_wave_open.return_value.__enter__.return_value = mock_file
+
         client = ApiClient()
-        result = client.transcribe("test_audio.wav")
-        assert result == "Error: Invalid API Key"
+        text, duration = client.transcribe("test_audio.wav")
+        assert text == "Error: Invalid API Key"
+        assert duration == 0.0
+
+    @patch('core.api_client.wave.open')
+    @patch('core.api_client.OpenAI')
+    def test_transcribe_success(self, mock_openai, mock_wave_open):
+        """Test successful transcription"""
+        from core.api_client import ApiClient
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+        mock_client.audio.transcriptions.create.return_value = MagicMock(text="Hello world")
+
+        # Mock wave duration
+        mock_file = MagicMock()
+        mock_file.getnframes.return_value = 88200
+        mock_file.getframerate.return_value = 44100
+        mock_wave_open.return_value.__enter__.return_value = mock_file
+
+        client = ApiClient("test-key")
+        with patch('builtins.open', mock_open(read_data=b"audio data")):
+            text, duration = client.transcribe("test_audio.wav")
+
+        assert text == "Hello world"
+        assert duration == 2.0
+
+    @patch('core.api_client.OpenAI')
+    def test_correct_text_success(self, mock_openai):
+        """Test successful text correction"""
+        from core.api_client import ApiClient
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "Corrected text"
+        mock_response.usage.prompt_tokens = 10
+        mock_response.usage.completion_tokens = 5
+        mock_client.chat.completions.create.return_value = mock_response
+
+        client = ApiClient("test-key")
+        text, usage = client.correct_text("Original text")
+
+        assert text == "Corrected text"
+        assert usage["prompt_tokens"] == 10
+        assert usage["completion_tokens"] == 5
 
     @patch('core.api_client.OpenAI')
     def test_execute_with_retry_success(self, mock_openai):
