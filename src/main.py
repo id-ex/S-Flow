@@ -176,10 +176,6 @@ class AppController(QObject):
             )
             install_update_action.triggered.connect(self.start_update_download)
             menu.addAction(install_update_action)
-        else:
-            update_action = QAction(tr("menu_check_updates"), self.app)
-            update_action.triggered.connect(self.manual_update_check)
-            menu.addAction(update_action)
 
         menu.addSeparator()
         menu.addAction(quit_action)
