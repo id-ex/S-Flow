@@ -115,6 +115,20 @@ class AudioRecorder:
 
         recording = np.concatenate(frames, axis=0)
 
+        # Check for minimum duration (e.g., 0.4 seconds)
+        duration = len(recording) / self.sample_rate
+        if duration < 0.4:
+            logger.info(f"Recording too short ({duration:.2f}s), skipping.")
+            return None
+
+        # Check for silence (max amplitude threshold)
+        # For 16-bit PCM, values range from -32768 to 32767. 
+        # A threshold of 100-200 is very quiet.
+        max_amplitude = np.max(np.abs(recording))
+        if max_amplitude < 150:
+            logger.info(f"Audio is too quiet (max amplitude {max_amplitude}), skipping.")
+            return None
+
         # Create temp file
         try:
             fd, path = tempfile.mkstemp(suffix=".wav")

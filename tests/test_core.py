@@ -26,11 +26,12 @@ class TestConfig:
 
     def test_load_settings_file_not_found(self):
         """Test settings loading when file doesn't exist"""
-        from core.config import load_settings
+        from core.config import load_settings, DEFAULT_SETTINGS
 
         with patch('os.path.exists', return_value=False):
-            settings = load_settings()
-            assert settings == {}
+            with patch('core.config.save_settings_file', return_value=True):
+                settings = load_settings()
+                assert settings == DEFAULT_SETTINGS
 
     def test_get_model_config(self):
         """Test model config retrieval"""

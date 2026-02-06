@@ -41,5 +41,6 @@ htmlcov/
 AGENTS.md
 CLAUDE.md
 .env*
+GEMINI.md
 ! .env.example
 test_app.py

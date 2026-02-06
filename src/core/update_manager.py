@@ -130,6 +130,7 @@ class UpdateManager(QObject):
         # Create batch script to swap files
         # It waits for process to end, swaps, restarts, and deletes itself
         bat_content = f"""@echo off
+set _MEIPASS=
 timeout /t 1 /nobreak > nul
 :loop
 tasklist /fi "imagename eq S-Flow.exe" | find /i "S-Flow.exe" > nul
@@ -146,8 +147,30 @@ del "%~f0"
             with open(bat_path, "w", encoding="cp1251") as f:
                 f.write(bat_content)
 
+            # Create a clean environment for the child process to avoid PyInstaller DLL issues
+            env = os.environ.copy()
+            # Remove PyInstaller-specific environment variables
+            meipass = getattr(sys, "_MEIPASS", None)
+            for var in ["_MEIPASS", "PYI_CHILD_STOP", "PYI_PARENT_STOP", "PYTHONPATH", "PYTHONHOME"]:
+                if var in env:
+                    del env[var]
+
+            # Also clean PATH to remove any references to the current temporary directory
+            if meipass:
+                paths = env.get("PATH", "").split(os.pathsep)
+                # Remove any entry that contains the current _MEIPASS path
+                new_paths = [p for p in paths if meipass not in p]
+                if len(new_paths) < len(paths):
+                    env["PATH"] = os.pathsep.join(new_paths)
+                    logger.debug(f"Cleaned PATH for updater: removed references to {meipass}")
+
             logger.info("Launching updater.bat and exiting...")
-            subprocess.Popen(bat_path, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            subprocess.Popen(
+                bat_path,
+                shell=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                env=env,
+            )
             sys.exit(0)
         except Exception as e:
             logger.exception("Failed to apply update")

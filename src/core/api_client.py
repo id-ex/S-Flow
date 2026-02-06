@@ -117,7 +117,38 @@ class ApiClient:
 
         try:
             transcription = self._execute_with_retry(_call_api)
-            return transcription.text, duration
+            text = transcription.text.strip()
+
+            # Filter out known Whisper hallucinations for silence
+            # These are common Russian artifacts from groups/individuals
+            artifacts = [
+                "редактор субтитров",
+                "а. синецкая",
+                "корректор а. егорова",
+                "субтитры а. синецкая",
+                "текст предоставлен правообладателем",
+                "dimatorzok",
+                "dima torzok",
+                "субтитры сделал",
+                "озвучка:",
+                "перевод:",
+            ]
+            
+            text_lower = text.lower().replace(".", "").replace(",", "").strip()
+            
+            # 1. Direct match with any artifact
+            if any(art in text_lower for art in artifacts):
+                # If text is short and contains an artifact, it's likely a hallucination
+                # Most hallucinations are under 60-70 characters.
+                if len(text) < 100:
+                    logger.warning(f"Whisper hallucination detected: {text}. Filtering out.")
+                    return "", duration
+                    
+            # 2. Check for very short strings that Whisper often hallucinations (less than 3 chars or just punctuation)
+            if len(text_lower.strip()) < 2:
+                return "", duration
+
+            return text, duration
         except (AuthenticationError, ValueError):
             logger.error("Authentication failed. Check API Key.")
             return "Error: Invalid API Key", 0.0

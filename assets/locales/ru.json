@@ -10,6 +10,7 @@
     "error_connection": "Ошибка: Нет соединения",
     "error_rate_limit": "Ошибка: Превышен лимит запросов",
     "error_auth": "Ошибка: Неверный API Key",
+    "error_no_speech": "Речь не обнаружена",
     "settings_title": "Настройки S-Flow",
     "hotkey_label": "Комбинация клавиш активации:",
     "api_key_label": "OpenAI API Key:",
@@ -52,8 +53,8 @@
     "menu_install_update": "Установить обновление {version}",
     "checking_updates": "Проверка обновлений...",
     "update_available_title": "Доступно обновление",
-    "update_available_msg": "Доступна новая версия {version}. Хотите обновить программу сейчас?",
-    "update_available_overlay": "Доступна версия {version}! Пункт в меню трея.",
+    "update_available_msg": "Доступна новая версия {version}.",
+    "update_available_overlay": "Доступна версия {version}!",
     "downloading_update": "Загрузка обновления...",
     "update_error": "Ошибка при проверке обновлений",
     "update_not_found": "Обновлений не найдено"

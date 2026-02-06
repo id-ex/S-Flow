@@ -25,6 +25,8 @@ from core.config import (
     get_resource_path,
     get_app_dir,
     set_autostart,
+    SYSTEM_PROMPT,
+    TRANSLATION_PROMPT,
 )
 from core.locale_manager import tr, set_language, get_current_language
 
@@ -71,6 +73,10 @@ class ProcessingWorker(QThread):
                 )
                 usage_stats.update(gpt_usage)
                 self.finished.emit(raw_text, corrected_text, usage_stats)
+            elif raw_text == "":
+                # Handle detected silence or filtered artifacts
+                logger.info("No speech detected or filtered artifact.")
+                self.finished.emit("", "NoSpeech", usage_stats)
             else:
                 self.finished.emit(
                     "", raw_text if raw_text else tr("error_transcription"), usage_stats
@@ -362,8 +368,8 @@ class AppController(QObject):
                 self.overlay.show_message(tr(msg_key), animate=True)
                 self.process_audio(audio_path)
             else:
-                self.overlay.hide_overlay()
-                logger.warning("Recording stopped but no audio path returned")
+                self.overlay.show_message(tr("error_no_speech"), duration=2000)
+                logger.warning("Recording stopped but no audio path returned (silence/short)")
         else:
             # Start
             self.audio_recorder.start_recording()
@@ -373,8 +379,7 @@ class AppController(QObject):
         self.is_processing = True
         is_translation = self.current_mode == "translation"
 
-        prompt_key = "translation_prompt" if is_translation else "system_prompt"
-        prompt = self.settings.get(prompt_key, "")
+        prompt = TRANSLATION_PROMPT if is_translation else SYSTEM_PROMPT
 
         context_chars = self.settings.get("context_window_chars", 3000)
         user_context = self.settings.get("user_context", "")
@@ -427,6 +432,7 @@ class AppController(QObject):
                 "Error: No Connection": "error_connection",
                 "Error: Transcription Failed": "error_transcription",
                 "Error: Unknown": "error_unknown",
+                "NoSpeech": "error_no_speech",
             }
 
             if error_text in map_errors:
