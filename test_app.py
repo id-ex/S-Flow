@@ -15,16 +15,14 @@ print("=" * 60)
 # Test 1: Configuration
 print("\n[1/6] Testing configuration...")
 try:
-    from core.config import load_settings, get_openai_key, APP_VERSION
+    from core.config import load_settings, APP_VERSION
     settings = load_settings()
-    api_key = get_openai_key()
 
     print(f"  ✓ Version: {APP_VERSION}")
     print(f"  ✓ Settings loaded: {len(settings)} items")
-    print(f"  ✓ API Key: {'✓ Present' if api_key else '✗ Missing'}")
 
     # Check required settings
-    required_keys = ['hotkey', 'correction_model', 'transcription_model']
+    required_keys = ['hotkey']
     for key in required_keys:
         if key in settings:
             print(f"  ✓ {key}: {settings[key]}")
@@ -50,9 +48,8 @@ except Exception as e:
 print("\n[3/6] Testing API client...")
 try:
     from core.api_client import ApiClient
-    client = ApiClient(api_key)
+    client = ApiClient(openai_key="dummy", groq_key="dummy")
     print(f"  ✓ ApiClient initialized")
-    print(f"  ✓ Models: {settings.get('correction_model')}, {settings.get('transcription_model')}")
 except Exception as e:
     print(f"  ✗ Error: {e}")
 

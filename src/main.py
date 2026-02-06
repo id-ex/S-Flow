@@ -6,7 +6,7 @@ import logging
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import pyqtSignal, QObject, QThread, QTimer, Qt
-from dotenv import load_dotenv, set_key
+from dotenv import load_dotenv, set_key, dotenv_values
 
 from ui.overlay import StatusOverlay
 from ui.settings_dialog import SettingsDialog
@@ -17,7 +17,6 @@ from core.text_process import TextProcessor
 from core.stats_manager import StatsManager
 from core.update_manager import UpdateManager
 from core.config import (
-    get_openai_key,
     load_settings,
     save_settings_file,
     setup_logging,
@@ -39,7 +38,7 @@ class ProcessingWorker(QThread):
     def __init__(
         self,
         api_client: ApiClient,
-        audio_path: str,
+        audio_buffer: any, # BytesIO
         history: list,
         system_prompt: str,
         context_chars: int,
@@ -49,7 +48,7 @@ class ProcessingWorker(QThread):
     ):
         super().__init__()
         self.api_client = api_client
-        self.audio_path = audio_path
+        self.audio_buffer = audio_buffer
         self.history = history
         self.system_prompt = system_prompt
         self.context_chars = context_chars
@@ -60,15 +59,17 @@ class ProcessingWorker(QThread):
     def run(self):
         try:
             logger.info("Transcribing audio...")
-            raw_text, duration = self.api_client.transcribe(self.audio_path)
-            usage_stats = {"whisper_seconds": duration, "prompt_tokens": 0, "completion_tokens": 0}
+            # Transcribe now takes buffer and returns (text, duration, provider)
+            raw_text, duration, provider = self.api_client.transcribe(self.audio_buffer)
+            usage_stats = {"whisper_seconds": duration, "prompt_tokens": 0, "completion_tokens": 0, "provider": provider}
 
             if raw_text and not raw_text.startswith("Error"):
-                logger.info(f"Transcription result: {raw_text[:50]}...")
+                logger.info(f"Transcription result ({provider}): {raw_text}")
                 
                 if self.use_llm_correction or self.is_translation:
                     corrected_text, gpt_usage = self.api_client.correct_text(
                         raw_text,
+                        provider,
                         self.history,
                         self.system_prompt,
                         self.context_chars,
@@ -76,6 +77,7 @@ class ProcessingWorker(QThread):
                         is_translation=self.is_translation,
                     )
                     usage_stats.update(gpt_usage)
+                    logger.info(f"Corrected Result: {corrected_text}")
                 else:
                     logger.info("LLM correction disabled, using raw text.")
                     corrected_text = raw_text
@@ -92,6 +94,12 @@ class ProcessingWorker(QThread):
         except Exception as e:
             logger.exception("Worker thread error")
             self.finished.emit("", tr("error_unknown"), {})
+        finally:
+            # Close buffer if needed, though BytesIO automanages memory usually
+            try:
+                self.audio_buffer.close()
+            except:
+                pass
 
 
 class AppController(QObject):
@@ -99,7 +107,16 @@ class AppController(QObject):
         super().__init__()
         self.app = app
         self.settings = load_settings()
-        self.api_key = get_openai_key() or ""
+        
+        # Keys from Environment or Settings (Migration fallback)
+        self.openai_key = os.getenv("OPENAI_API_KEY")
+        if not self.openai_key:
+             self.openai_key = self.settings.get("openai_api_key", "")
+        
+        self.groq_key = os.getenv("GROQ_API_KEY")
+        if not self.groq_key:
+             self.groq_key = self.settings.get("groq_api_key", "")
+        
         self.is_processing = False
 
         # Initialize Locale
@@ -110,7 +127,7 @@ class AppController(QObject):
         self.overlay = StatusOverlay()
 
         # API & Logic
-        self.api_client = ApiClient(self.api_key) if self.api_key else ApiClient()
+        self.api_client = self._create_api_client()
         self.audio_recorder = AudioRecorder()
         self.stats_manager = StatsManager()
         self.update_manager = UpdateManager()
@@ -159,11 +176,22 @@ class AppController(QObject):
         self.overlay.show_message(tr("ready"), duration=2000)
         logger.info(f"Application started (Language: {lang})")
 
-        if not self.api_key:
+        if not self.openai_key and not self.groq_key:
             QTimer.singleShot(1000, self.open_settings)
 
         # Auto-check for updates after 5 seconds
         QTimer.singleShot(5000, lambda: self.update_manager.check_for_updates(manual=False))
+
+    def _create_api_client(self):
+        def on_api_notify(msg):
+            # Thread-safe UI update
+            QTimer.singleShot(0, lambda: self.overlay.show_message(msg, duration=4000))
+            
+        return ApiClient(
+            openai_key=self.openai_key, 
+            groq_key=self.groq_key,
+            on_notify=on_api_notify
+        )
 
     def update_tray_menu(self):
         from core.config import APP_VERSION
@@ -206,13 +234,14 @@ class AppController(QObject):
 
         dialog = SettingsDialog(
             None,
-            self.settings.get("hotkey", "ctrl+alt+s"),
-            self.api_key,
-            current_lang,
-            self.settings.get("cancel_hotkey", "ctrl+alt+x"),
-            self.settings.get("translation_hotkey", "ctrl+alt+t"),
-            self.settings.get("startup", False),
-            self.settings.get("use_llm_correction", True),
+            current_hotkey=self.settings.get("hotkey", "ctrl+alt+s"),
+            openai_key=self.openai_key,
+            groq_key=self.groq_key,
+            current_lang=current_lang,
+            cancel_hotkey=self.settings.get("cancel_hotkey", "ctrl+alt+x"),
+            translation_hotkey=self.settings.get("translation_hotkey", "ctrl+alt+t"),
+            current_startup=self.settings.get("startup", False),
+            use_llm_correction=self.settings.get("use_llm_correction", True),
         )
         # Manually set context because we passed None as parent
         dialog.context_input.setPlainText(self.settings.get("user_context", ""))
@@ -239,17 +268,27 @@ class AppController(QObject):
                 logger.info(f"Cancel Hotkey updated to {dialog.new_cancel_hotkey}")
                 changes = True
 
-            # Update API Key
-            if dialog.new_api_key != self.api_key:
-                env_path = os.path.join(get_app_dir(), ".env")
-                if not os.path.exists(env_path):
-                    with open(env_path, "w") as f:
-                        f.write("")
-                set_key(env_path, "OPENAI_API_KEY", dialog.new_api_key)
-                self.api_key = dialog.new_api_key
-                self.api_client = ApiClient(self.api_key)
-                logger.info("API Key updated")
-                changes = True
+            # Update API Keys (to .env)
+            env_path = os.path.join(get_app_dir(), ".env")
+            if not os.path.exists(env_path):
+                with open(env_path, "w") as f:
+                    f.write("")
+
+            keys_changed = False
+            if dialog.new_openai_key != self.openai_key:
+                set_key(env_path, "OPENAI_API_KEY", dialog.new_openai_key)
+                self.openai_key = dialog.new_openai_key
+                logger.info("OpenAI API Key updated in .env")
+                keys_changed = True
+                
+            if dialog.new_groq_key != self.groq_key:
+                set_key(env_path, "GROQ_API_KEY", dialog.new_groq_key)
+                self.groq_key = dialog.new_groq_key
+                logger.info("Groq API Key updated in .env")
+                keys_changed = True
+            
+            if keys_changed:
+                self.api_client = self._create_api_client()
 
             # Update Translation Hotkey
             if dialog.new_translation_hotkey != self.settings.get("translation_hotkey"):
@@ -298,6 +337,7 @@ class AppController(QObject):
         self.translation_hotkey_manager.start()
         self.cancel_hotkey_manager.start()
         logger.info("Hotkeys restarted after settings dialog")
+
 
     def open_statistics(self):
         from ui.stats_dialog import StatsDialog
@@ -419,11 +459,14 @@ class AppController(QObject):
         self.overlay.hide_overlay()
 
         if usage_stats:
-            self.stats_manager.add_usage(
-                whisper_seconds=usage_stats.get("whisper_seconds", 0.0),
-                prompt_tokens=usage_stats.get("prompt_tokens", 0),
-                completion_tokens=usage_stats.get("completion_tokens", 0)
-            )
+            # Stats for cost calculation:
+            # We only add to stats if provider is NOT Groq (since Groq is free in this context)
+            if usage_stats.get("provider") != "groq":
+                self.stats_manager.add_usage(
+                    whisper_seconds=usage_stats.get("whisper_seconds", 0.0),
+                    prompt_tokens=usage_stats.get("prompt_tokens", 0),
+                    completion_tokens=usage_stats.get("completion_tokens", 0)
+                )
 
         if raw_text and not corrected_text.startswith("Error"):
             self.overlay.show_message(tr("done"), duration=1000)

@@ -11,10 +11,12 @@ from openai import (
     AuthenticationError,
     RateLimitError,
     APIConnectionError,
+    APITimeoutError
 )
 import logging
 import time
 import wave
+import io
 from typing import Callable, Any, Tuple
 from .config import get_model_config, MAX_RETRIES, RETRY_DELAY
 
@@ -29,43 +31,44 @@ class ApiClient:
     text correction/chat completion using GPT models.
     """
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        openai_key: str | None = None,
+        groq_key: str | None = None,
+        on_notify: Callable[[str], None] | None = None,
+    ) -> None:
         """
         Initialize API client.
 
         Args:
-            api_key: OpenAI API key. If None, client will be initialized later.
+            openai_key: OpenAI API key.
+            groq_key: Groq API key.
+            on_notify: Callback function to send notifications (msg) -> None.
         """
-        self.client: OpenAI | None = None
-        if api_key:
-            self.client = OpenAI(api_key=api_key)
+        self.openai_client: OpenAI | None = None
+        self.groq_client: OpenAI | None = None
+        self.on_notify = on_notify
+
+        if openai_key:
+            self.openai_client = OpenAI(api_key=openai_key)
+        
+        if groq_key:
+            self.groq_client = OpenAI(
+                api_key=groq_key,
+                base_url="https://api.groq.com/openai/v1"
+            )
+
         self.config = get_model_config()
 
     def _execute_with_retry(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Execute a function with exponential backoff retry logic.
-
-        Retries on RateLimitError and APIConnectionError with exponential backoff.
-        Other exceptions are raised immediately.
-
-        Args:
-            func: Function to execute
-            *args: Positional arguments for func
-            **kwargs: Keyword arguments for func
-
-        Returns:
-            Result of func call
-
-        Raises:
-            RateLimitError: If max retries exceeded
-            APIConnectionError: If max retries exceeded
-            Exception: Other exceptions are propagated
         """
         retries = 0
         while retries <= MAX_RETRIES:
             try:
                 return func(*args, **kwargs)
-            except (RateLimitError, APIConnectionError) as e:
+            except (RateLimitError, APIConnectionError, APITimeoutError) as e:
                 retries += 1
                 if retries > MAX_RETRIES:
                     logger.error(f"Max retries exceeded for {func.__name__}: {e}")
@@ -80,98 +83,146 @@ class ApiClient:
                 # Other errors: do not retry
                 raise e
 
-    def transcribe(self, audio_path: str) -> Tuple[str, float]:
+    def transcribe(self, audio_file: io.BytesIO | str) -> Tuple[str, float, str]:
         """
-        Transcribe audio file using OpenAI Whisper API.
+        Transcribe audio file using Groq (primary) or OpenAI (fallback).
 
         Args:
-            audio_path: Path to WAV audio file
+            audio_file: Buffer (BytesIO) or path to WAV audio file
 
         Returns:
-            Tuple of (Transcribed text, duration in seconds)
-            If transcription fails, returns (Error string, 0.0)
-
-        Note:
-            Returns error strings instead of raising exceptions for UI compatibility.
-            Error format: "Error: <message>"
+            Tuple of (Transcribed text, duration in seconds, provider_used)
+            provider_used: "groq" or "openai"
+            If transcription fails, returns (Error string, 0.0, "")
         """
-        model = self.config.get("transcription_model", "whisper-1")
-        language = self.config.get("transcription_language", "ru")
-
+        # Calculate duration
         duration = 0.0
         try:
-            with wave.open(audio_path, "rb") as wav_file:
-                frames = wav_file.getnframes()
-                rate = wav_file.getframerate()
-                duration = frames / float(rate)
+            # Handle both path and file-like object
+            if isinstance(audio_file, str):
+                f = open(audio_file, "rb")
+                should_close = True
+            else:
+                f = audio_file
+                should_close = False
+                f.seek(0)
+            
+            try:
+                with wave.open(f, "rb") as wav_file:
+                    frames = wav_file.getnframes()
+                    rate = wav_file.getframerate()
+                    duration = frames / float(rate)
+            finally:
+                if should_close:
+                    f.close()
+                else:
+                    f.seek(0) # Reset buffer position
         except Exception as e:
             logger.error(f"Error calculating audio duration: {e}")
 
-        def _call_api():
-            if not self.client:
-                raise ValueError("API Key not set")
-            with open(audio_path, "rb") as audio_file:
-                return self.client.audio.transcriptions.create(
-                    model=model, file=audio_file, language=language
-                )
+        # Helper to prepare file for API
+        def get_file_obj():
+            if isinstance(audio_file, str):
+                return open(audio_file, "rb")
+            else:
+                audio_file.seek(0)
+                # Important: API client needs a 'name' attribute to determine content type
+                if not hasattr(audio_file, "name"):
+                    audio_file.name = "audio.wav" 
+                return audio_file # BytesIO is already file-like
 
-        try:
-            transcription = self._execute_with_retry(_call_api)
-            text = transcription.text.strip()
+        # --- Attempt 1: Groq ---
+        if self.groq_client:
+            try:
+                logger.info("Attempting transcription with Groq...")
+                
+                def _call_groq():
+                    f_obj = get_file_obj()
+                    try:
+                        model_name = "whisper-large-v3-turbo"
+                        logger.info(f"STT Model: {model_name}")
+                        return self.groq_client.audio.transcriptions.create(
+                            model=model_name,
+                            file=f_obj,
+                            language="ru" # Groq whisper supports language param
+                        )
+                    finally:
+                        if isinstance(audio_file, str):
+                            f_obj.close()
 
-            # Filter out known Whisper hallucinations for silence
-            # These are common Russian artifacts from groups/individuals
-            artifacts = [
-                "редактор субтитров",
-                "а. синецкая",
-                "корректор а. егорова",
-                "субтитры а. синецкая",
-                "текст предоставлен правообладателем",
-                "dimatorzok",
-                "dima torzok",
-                "субтитры сделал",
-                "озвучка:",
-                "перевод:",
-                "приятного аппетита",
-                "с вами был игорь негода",
-                "подписывайтесь на мой канал",
-                "игорь негода",
-            ]
-            
-            text_lower = text.lower().replace(".", "").replace(",", "").strip()
-            
-            # 1. Direct match with any artifact
-            if any(art in text_lower for art in artifacts):
-                # If text is short and contains an artifact, it's likely a hallucination
-                # Most hallucinations are under 60-70 characters.
-                if len(text) < 100:
-                    logger.warning(f"Whisper hallucination detected: {text}. Filtering out.")
-                    return "", duration
-                    
-            # 2. Check for very short strings that Whisper often hallucinations (less than 3 chars or just punctuation)
-            if len(text_lower.strip()) < 2:
-                return "", duration
+                transcription = self._execute_with_retry(_call_groq)
+                text = transcription.text.strip()
+                return self._process_text(text, duration, "groq")
 
-            return text, duration
-        except (AuthenticationError, ValueError):
-            logger.error("Authentication failed. Check API Key.")
-            return "Error: Invalid API Key", 0.0
-        except RateLimitError:
-            logger.error("Rate limit exceeded.")
-            return "Error: Rate Limit Exceeded", 0.0
-        except APIConnectionError:
-            logger.error("Network connection error.")
-            return "Error: No Connection", 0.0
-        except APIError as e:
-            logger.error(f"OpenAI API Error: {e}")
-            return f"Error: API Error", 0.0
-        except Exception as e:
-            logger.exception(f"Unexpected error during transcription: {e}")
-            return f"Error: Transcription Failed", 0.0
+            except (RateLimitError, APIConnectionError, APITimeoutError, APIError) as e:
+                msg = f"Groq Issue: {e}. Switching to OpenAI."
+                logger.warning(msg)
+                if self.on_notify:
+                    self.on_notify("Лимит Groq исчерпан. Переключаюсь на OpenAI")
+            except Exception as e:
+                logger.error(f"Unexpected Groq error: {e}. Switching to OpenAI.")
+                if self.on_notify:
+                    self.on_notify("Ошибка Groq. Переключаюсь на OpenAI")
+
+        # --- Attempt 2: OpenAI (Fallback) ---
+        if self.openai_client:
+            try:
+                logger.info("Attempting transcription with OpenAI...")
+                 
+                def _call_openai():
+                    f_obj = get_file_obj()
+                    try:
+                        model_name = "whisper-1"
+                        logger.info(f"STT Model: {model_name}")
+                        return self.openai_client.audio.transcriptions.create(
+                            model=model_name,
+                            file=f_obj,
+                            language="ru"
+                        )
+                    finally:
+                        if isinstance(audio_file, str):
+                            f_obj.close()
+
+                transcription = self._execute_with_retry(_call_openai)
+                text = transcription.text.strip()
+                return self._process_text(text, duration, "openai")
+
+            except (AuthenticationError, ValueError):
+                logger.error("OpenAI Authentication failed.")
+                return "Error: Invalid API Key", 0.0, ""
+            except Exception as e:
+                logger.exception(f"OpenAI transcription failed: {e}")
+                return "Error: Transcription Failed", 0.0, ""
+        
+        return "Error: No valid API provider configured", 0.0, ""
+
+    def _process_text(self, text: str, duration: float, provider: str) -> Tuple[str, float, str]:
+        """Filter hallucinations and return result."""
+        # Filter out known Whisper hallucinations
+        artifacts = [
+            "редактор субтитров", "а. синецкая", "корректор а. егорова",
+            "субтитры а. синецкая", "текст предоставлен правообладателем",
+            "dimatorzok", "dima torzok", "субтитры сделал", "озвучка:",
+            "перевод:", "приятного аппетита", "с вами был игорь негода",
+            "подписывайтесь на мой канал", "игорь негода",
+        ]
+        
+        text_lower = text.lower().replace(".", "").replace(",", "").strip()
+        
+        if any(art in text_lower for art in artifacts):
+            if len(text) < 100:
+                logger.warning(f"Whisper hallucination detected: {text}")
+                return "", duration, provider
+                
+        if len(text_lower.strip()) < 2:
+            return "", duration, provider
+
+        return text, duration, provider
 
     def correct_text(
         self,
         text: str,
+        provider: str,
         previous_messages: list | None = None,
         system_prompt: str | None = None,
         context_chars: int = 3000,
@@ -179,27 +230,28 @@ class ApiClient:
         is_translation: bool = False,
     ) -> Tuple[str, dict]:
         """
-        Correct or translate text using OpenAI Chat API.
-
-        Supports both text correction and translation modes. Builds context
-        from previous messages and user-provided context.
-
-        Args:
-            text: Text to process
-            previous_messages: List of previous conversation messages for context
-            system_prompt: Custom system prompt (uses default if None)
-            context_chars: Maximum context characters from history
-            user_context: Additional user-provided context (e.g., topics, terms)
-            is_translation: If True, use translation mode instead of correction
-
-        Returns:
-            Tuple of (Corrected/translated text, usage dictionary)
-            If processing fails, returns (original text, empty dict)
+        Correct text using the specified provider.
         """
         if previous_messages is None:
             previous_messages = []
 
-        model = self.config.get("correction_model", "gpt-4o-mini")
+        # Logic for pairing:
+        # Groq -> llama-3.3-70b-versatile
+        # OpenAI -> gpt-4o-mini
+        
+        if provider == "groq" and self.groq_client:
+            client = self.groq_client
+            model = "llama-3.3-70b-versatile"
+        elif provider == "openai" and self.openai_client:
+            client = self.openai_client
+            model = "gpt-4o-mini"
+        elif self.openai_client: # Fallback to OpenAI if provider invalid/missing but openai avail
+            client = self.openai_client
+            model = "gpt-4o-mini"
+        else:
+            return text, {}
+
+        logger.info(f"LLM Correction Model: {model}")
 
         try:
             # Default prompt if none provided
@@ -216,11 +268,9 @@ class ApiClient:
                 else:
                     system_prompt = "Ты — помощник, который исправляет распознанный текст. Контекст:\n{{history}}"
 
-            # Construct context by chars
+            # Construct context
             history_text = ""
             current_length = 0
-
-            # Iterate backwards
             context_messages = []
             for msg in reversed(previous_messages):
                 msg_text = msg["text"]
@@ -229,13 +279,10 @@ class ApiClient:
                     current_length += len(msg_text)
                 else:
                     break
-
             history_text = "\n".join(context_messages)
 
-            # Use Base Prompt
-            final_system_prompt = system_prompt
-
             # Inject History
+            final_system_prompt = system_prompt
             if "{{history}}" in final_system_prompt:
                 final_system_prompt = final_system_prompt.replace(
                     "{{history}}", history_text if history_text else "Нет контекста."
@@ -254,9 +301,7 @@ class ApiClient:
             ]
 
             def _call_chat():
-                if not self.client:
-                    raise ValueError("API Key not set")
-                return self.client.chat.completions.create(
+                return client.chat.completions.create(
                     model=model, messages=messages
                 )
 
@@ -264,9 +309,11 @@ class ApiClient:
             usage = {
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
+                "provider": provider
             }
             return response.choices[0].message.content.strip(), usage
+            
         except Exception as e:
-            logger.exception(f"Correction error: {e}")
+            logger.exception(f"Correction error ({provider}): {e}")
             return text, {}
 

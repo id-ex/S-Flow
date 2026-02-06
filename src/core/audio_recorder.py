@@ -1,16 +1,8 @@
-"""
-Audio Recorder module for capturing microphone input.
-
-This module provides functionality to record audio from the default microphone
-and save it to temporary WAV files for transcription.
-"""
-
 import sounddevice as sd
 import numpy as np
-import scipy.io.wavfile as wav
-import tempfile
+import io
+import wave
 import threading
-import os
 import logging
 import queue
 
@@ -19,18 +11,18 @@ logger = logging.getLogger(__name__)
 
 class AudioRecorder:
     """
-    Records audio from the default microphone to temporary WAV files.
+    Records audio from the default microphone to in-memory buffers.
 
     Uses sounddevice for audio capture with callback-based streaming.
-    Audio data is buffered in a queue and saved on stop_recording().
+    Audio data is buffered in a queue and saved to a BytesIO object on stop_recording().
     """
 
-    def __init__(self, sample_rate: int = 44100, channels: int = 1) -> None:
+    def __init__(self, sample_rate: int = 16000, channels: int = 1) -> None:
         """
         Initialize audio recorder.
 
         Args:
-            sample_rate: Sample rate in Hz (default: 44100)
+            sample_rate: Sample rate in Hz (default: 16000 for efficiency)
             channels: Number of audio channels (default: 1 for mono)
         """
         self.sample_rate = sample_rate
@@ -38,19 +30,12 @@ class AudioRecorder:
         self.recording = False
         self.audio_queue = queue.Queue()
         self.stream = None
-        self.filename = None
-        self.temp_files = []  # Track created temp files for cleanup
 
     def cleanup(self) -> None:
-        """Remove all temporary audio files created during recording sessions."""
-        for path in self.temp_files:
-            try:
-                if os.path.exists(path):
-                    os.unlink(path)
-                    logger.debug(f"Cleaned up temp file: {path}")
-            except Exception as e:
-                logger.warning(f"Failed to delete temp file {path}: {e}")
-        self.temp_files.clear()
+        """
+        No-op for compatibility, as we no longer use temp files.
+        """
+        pass
 
     def start_recording(self) -> None:
         """Start recording audio from the default microphone."""
@@ -81,12 +66,12 @@ class AudioRecorder:
             logger.error(f"Failed to start recording: {e}")
             self.recording = False
 
-    def stop_recording(self) -> str | None:
+    def stop_recording(self) -> io.BytesIO | None:
         """
-        Stop recording and save audio to a temporary WAV file.
+        Stop recording and save audio to an in-memory buffer.
 
         Returns:
-            Path to the temporary WAV file, or None if no data was recorded
+            io.BytesIO object containing WAV data, or None if no data was recorded
         """
         if not self.recording or not self.stream:
             return None
@@ -98,12 +83,12 @@ class AudioRecorder:
 
         return self._save_from_queue()
 
-    def _save_from_queue(self) -> str | None:
+    def _save_from_queue(self) -> io.BytesIO | None:
         """
-        Save queued audio data to a temporary WAV file.
+        Save queued audio data to an in-memory buffer.
 
         Returns:
-            Path to the temporary WAV file, or None if saving failed
+            io.BytesIO object containing WAV data, or None if saving failed
         """
         frames = []
         while not self.audio_queue.empty():
@@ -122,21 +107,23 @@ class AudioRecorder:
             return None
 
         # Check for silence (max amplitude threshold)
-        # For 16-bit PCM, values range from -32768 to 32767. 
-        # A threshold of 100-200 is very quiet.
         max_amplitude = np.max(np.abs(recording))
         if max_amplitude < 150:
             logger.info(f"Audio is too quiet (max amplitude {max_amplitude}), skipping.")
             return None
 
-        # Create temp file
+        # Create in-memory buffer
         try:
-            fd, path = tempfile.mkstemp(suffix=".wav")
-            os.close(fd)
-            wav.write(path, self.sample_rate, recording)
-            self.temp_files.append(path)  # Track for cleanup
-            logger.info(f"Audio saved to {path}")
-            return path
+            audio_buffer = io.BytesIO()
+            with wave.open(audio_buffer, "wb") as wav_file:
+                wav_file.setnchannels(self.channels)
+                wav_file.setsampwidth(2)  # 2 bytes for int16
+                wav_file.setframerate(self.sample_rate)
+                wav_file.writeframes(recording.tobytes())
+            
+            audio_buffer.seek(0)
+            logger.info("Audio saved to memory buffer")
+            return audio_buffer
         except Exception as e:
-            logger.error(f"Failed to save audio file: {e}")
+            logger.error(f"Failed to save audio to memory: {e}")
             return None

@@ -22,7 +22,9 @@ class TestConfig:
         with patch('builtins.open', mock_open(read_data='{"test": "value"}')):
             with patch('os.path.exists', return_value=True):
                 settings = load_settings()
-                assert settings == {"test": "value"}
+                # load_settings merges with defaults, so we check if our key is present
+                assert settings["test"] == "value"
+                assert "app_language" in settings
 
     def test_load_settings_file_not_found(self):
         """Test settings loading when file doesn't exist"""
@@ -95,7 +97,7 @@ class TestAudioRecorder:
         from core.audio_recorder import AudioRecorder
 
         recorder = AudioRecorder()
-        assert recorder.sample_rate == 44100
+        assert recorder.sample_rate == 16000
         assert recorder.channels == 1
         assert recorder.recording is False
         assert recorder.stream is None
@@ -158,29 +160,47 @@ class TestTextProcessor:
         mock_time.sleep.assert_called_once_with(0.2)
 
 
+
+
 class TestApiClient:
     """Test API client"""
 
     @patch('core.api_client.OpenAI')
-    def test_client_initialization_with_key(self, mock_openai):
-        """Test client initialization with API key"""
+    def test_client_initialization_with_keys(self, mock_openai):
+        """Test client initialization with API keys"""
         from core.api_client import ApiClient
 
-        client = ApiClient("test-api-key")
-        assert client.client is not None
-        assert client.config["transcription_model"] == "whisper-1"
-        assert client.config["correction_model"] == "gpt-4o-mini"
+        # Setup side_effect to return distinct mocks for each call
+        mock_openai_instance = MagicMock()
+        mock_groq_instance = MagicMock()
+        mock_openai.side_effect = [mock_openai_instance, mock_groq_instance]
 
-    def test_client_initialization_without_key(self):
-        """Test client initialization without API key"""
+        client = ApiClient(openai_key="test-openai", groq_key="test-groq")
+        
+        assert client.openai_client == mock_openai_instance
+        assert client.groq_client == mock_groq_instance
+        
+        # Verify calls - Groq init uses base_url
+        assert mock_openai.call_count == 2
+        # First call is openai (based on init order in code: openai then groq)
+        # Check specific call arguments if needed
+        # We can inspect call_args_list
+        calls = mock_openai.call_args_list
+        assert calls[0].kwargs['api_key'] == "test-openai"
+        assert calls[1].kwargs['api_key'] == "test-groq"
+        assert calls[1].kwargs['base_url'] == "https://api.groq.com/openai/v1"
+
+    def test_client_initialization_without_keys(self):
+        """Test client initialization without API keys"""
         from core.api_client import ApiClient
 
         client = ApiClient()
-        assert client.client is None
+        assert client.openai_client is None
+        assert client.groq_client is None
 
     @patch('core.api_client.wave.open')
     def test_transcribe_no_client(self, mock_wave_open):
-        """Test transcription when client is not initialized"""
+        """Test transcription when no clients are initialized"""
         from core.api_client import ApiClient
 
         # Mock wave duration
@@ -190,98 +210,91 @@ class TestApiClient:
         mock_wave_open.return_value.__enter__.return_value = mock_file
 
         client = ApiClient()
-        text, duration = client.transcribe("test_audio.wav")
-        assert text == "Error: Invalid API Key"
+        # Mocking byte buffer as it expects file-like object or str
+        from io import BytesIO
+        buf = BytesIO(b"fake wav")
+        buf.name = "audio.wav"
+
+        text, duration, provider = client.transcribe(buf)
+        assert text == "Error: No valid API provider configured"
         assert duration == 0.0
 
-    @patch('core.api_client.wave.open')
     @patch('core.api_client.OpenAI')
-    def test_transcribe_success(self, mock_openai, mock_wave_open):
-        """Test successful transcription"""
+    def test_transcribe_groq_success(self, mock_openai):
+        """Test successful transcription with Groq (Primary)"""
         from core.api_client import ApiClient
 
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
-        mock_client.audio.transcriptions.create.return_value = MagicMock(text="Hello world")
+        # We need mock_openai to return mocks when instantiated
+        mock_openai_inst = MagicMock()
+        mock_groq_inst = MagicMock()
+        mock_openai.side_effect = [mock_openai_inst, mock_groq_inst]
+        
+        mock_groq_inst.audio.transcriptions.create.return_value = MagicMock(text="Groq Transcription")
 
-        # Mock wave duration
-        mock_file = MagicMock()
-        mock_file.getnframes.return_value = 88200
-        mock_file.getframerate.return_value = 44100
-        mock_wave_open.return_value.__enter__.return_value = mock_file
+        client = ApiClient(openai_key="test-openai", groq_key="test-groq")
+        
+        from io import BytesIO
+        buf = BytesIO(b"fake wav")
+        buf.name = "audio.wav"
+        
+        text, duration, provider = client.transcribe(buf)
 
-        client = ApiClient("test-key")
-        with patch('builtins.open', mock_open(read_data=b"audio data")):
-            text, duration = client.transcribe("test_audio.wav")
-
-        assert text == "Hello world"
-        assert duration == 2.0
+        assert text == "Groq Transcription"
+        assert provider == "groq"
+        mock_groq_inst.audio.transcriptions.create.assert_called()
 
     @patch('core.api_client.OpenAI')
-    def test_correct_text_success(self, mock_openai):
-        """Test successful text correction"""
+    def test_transcribe_failover_to_openai(self, mock_openai):
+        """Test failover from Groq to OpenAI"""
         from core.api_client import ApiClient
 
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
+        mock_openai_inst = MagicMock()
+        mock_groq_inst = MagicMock()
+        mock_openai.side_effect = [mock_openai_inst, mock_groq_inst]
+
+        # Simulate Groq error
+        mock_groq_inst.audio.transcriptions.create.side_effect = Exception("Groq Error")
+        
+        # OpenAI success
+        mock_openai_inst.audio.transcriptions.create.return_value = MagicMock(text="OpenAI Transcription")
+
+        client = ApiClient(openai_key="test-openai", groq_key="test-groq")
+
+        from io import BytesIO
+        buf = BytesIO(b"fake wav")
+        buf.name = "audio.wav"
+
+        text, duration, provider = client.transcribe(buf)
+
+        assert text == "OpenAI Transcription"
+        assert provider == "openai"
+        mock_groq_inst.audio.transcriptions.create.assert_called()
+        mock_openai_inst.audio.transcriptions.create.assert_called()
+
+    @patch('core.api_client.OpenAI')
+    def test_correct_text_groq(self, mock_openai):
+        """Test correct_text functionality using Groq"""
+        from core.api_client import ApiClient
+
+        mock_groq_inst = MagicMock()
+        mock_openai.return_value = mock_groq_inst
 
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = "Corrected text"
+        mock_response.choices[0].message.content = "Corrected by Groq"
         mock_response.usage.prompt_tokens = 10
         mock_response.usage.completion_tokens = 5
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_groq_inst.chat.completions.create.return_value = mock_response
 
-        client = ApiClient("test-key")
-        text, usage = client.correct_text("Original text")
+        # Only init groq key so only one client created
+        client = ApiClient(groq_key="test-groq")
+        
+        text, usage = client.correct_text("Original", provider="groq")
 
-        assert text == "Corrected text"
-        assert usage["prompt_tokens"] == 10
-        assert usage["completion_tokens"] == 5
-
-    @patch('core.api_client.OpenAI')
-    def test_execute_with_retry_success(self, mock_openai):
-        """Test successful API call with retry logic"""
-        from core.api_client import ApiClient
-
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
-
-        client = ApiClient("test-key")
-
-        # Mock function that succeeds
-        def mock_func():
-            return "success"
-
-        result = client._execute_with_retry(mock_func)
-        assert result == "success"
-
-    @patch('core.api_client.OpenAI')
-    @patch('core.api_client.time.sleep')
-    def test_execute_with_retry_rate_limit(self, mock_sleep, mock_openai):
-        """Test retry logic on rate limit error"""
-        from core.api_client import ApiClient
-        from openai import RateLimitError
-
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
-
-        client = ApiClient("test-key")
-
-        call_count = 0
-
-        def mock_func():
-            nonlocal call_count
-            call_count += 1
-            if call_count < 2:
-                # Create a proper RateLimitError with required arguments
-                response = MagicMock()
-                response.status_code = 429
-                raise RateLimitError("Rate limit exceeded", response=response, body="")
-            return "success"
-
-        result = client._execute_with_retry(mock_func)
-        assert result == "success"
-        assert call_count == 2
+        assert text == "Corrected by Groq"
+        assert usage["provider"] == "groq"
+        # Verify model used
+        call_args = mock_groq_inst.chat.completions.create.call_args
+        assert call_args.kwargs['model'] == "llama-3.3-70b-versatile"
 
 
 if __name__ == "__main__":

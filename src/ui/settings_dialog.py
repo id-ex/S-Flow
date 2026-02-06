@@ -70,7 +70,8 @@ class SettingsDialog(QDialog):
         self,
         parent=None,
         current_hotkey: str = "",
-        current_api_key: str = "",
+        openai_key: str = "",
+        groq_key: str = "",
         current_lang: str = "ru",
         cancel_hotkey: str = "ctrl+alt+x",
         translation_hotkey: str = "ctrl+alt+t",
@@ -81,7 +82,8 @@ class SettingsDialog(QDialog):
         self.new_hotkey = current_hotkey
         self.new_cancel_hotkey = cancel_hotkey
         self.new_translation_hotkey = translation_hotkey
-        self.new_api_key = current_api_key
+        self.new_openai_key = openai_key
+        self.new_groq_key = groq_key
         self.new_lang = current_lang
         self.new_startup = current_startup
         self.use_llm_correction = use_llm_correction
@@ -90,7 +92,7 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-        self.setFixedSize(400, 540)  # Optimized height after removing model selection
+        self.setFixedSize(400, 600)  # Increased height for extra API input
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
@@ -114,11 +116,37 @@ class SettingsDialog(QDialog):
         self.layout.addWidget(self.cancel_hotkey_input)
         self.layout.addSpacing(15) # Gap after hotkeys group
 
-        # API Key & AI
-        self.layout.addWidget(QLabel(tr("api_key_label")))
-        self.api_input = QLineEdit(current_api_key)
-        self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.layout.addWidget(self.api_input)
+        # Groq API Key
+        groq_label_layout = QHBoxLayout()
+        groq_label = QLabel("Groq API Key (Primary)")
+        groq_link = QLabel('<a href="https://console.groq.com/keys" style="color: #4da6ff; text-decoration: none;">(Groq Cloud)</a>')
+        groq_link.setOpenExternalLinks(True)
+        groq_link.setCursor(Qt.CursorShape.PointingHandCursor)
+        groq_label_layout.addWidget(groq_label)
+        groq_label_layout.addWidget(groq_link)
+        groq_label_layout.addStretch()
+        self.layout.addLayout(groq_label_layout)
+        
+        self.groq_input = QLineEdit(groq_key)
+        self.groq_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.groq_input.setPlaceholderText("gsk_...")
+        self.layout.addWidget(self.groq_input)
+
+        # OpenAI API Key
+        openai_label_layout = QHBoxLayout()
+        openai_label = QLabel("OpenAI API Key (Fallback)")
+        openai_link = QLabel('<a href="https://platform.openai.com/api-keys" style="color: #4da6ff; text-decoration: none;">(OpenAI Platform)</a>')
+        openai_link.setOpenExternalLinks(True)
+        openai_link.setCursor(Qt.CursorShape.PointingHandCursor)
+        openai_label_layout.addWidget(openai_label)
+        openai_label_layout.addWidget(openai_link)
+        openai_label_layout.addStretch()
+        self.layout.addLayout(openai_label_layout)
+
+        self.openai_input = QLineEdit(openai_key)
+        self.openai_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.openai_input.setPlaceholderText("sk-...")
+        self.layout.addWidget(self.openai_input)
 
         self.llm_check = QCheckBox(tr("use_llm_label"))
         self.llm_check.setChecked(use_llm_correction)
@@ -183,7 +211,8 @@ class SettingsDialog(QDialog):
         new_hotkey = self.hotkey_input.text().strip()
         new_cancel_hotkey = self.cancel_hotkey_input.text().strip()
         new_translation_hotkey = self.translation_hotkey_input.text().strip()
-        new_api_key = self.api_input.text().strip()
+        new_groq_key = self.groq_input.text().strip()
+        new_openai_key = self.openai_input.text().strip()
         new_lang = self.lang_combo.currentData()
         new_user_context = self.context_input.toPlainText().strip()
         new_startup = self.startup_check.isChecked()
@@ -193,14 +222,15 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
             return
 
-        if not new_api_key:
-            QMessageBox.warning(self, tr("error_title"), tr("error_empty_api"))
-            return
+        if not new_groq_key and not new_openai_key:
+             QMessageBox.warning(self, tr("error_title"), "Please enter at least one API key (Groq or OpenAI).")
+             return
 
         self.new_hotkey = new_hotkey
         self.new_cancel_hotkey = new_cancel_hotkey
         self.new_translation_hotkey = new_translation_hotkey
-        self.new_api_key = new_api_key
+        self.new_openai_key = new_openai_key
+        self.new_groq_key = new_groq_key
         self.new_lang = new_lang
         self.new_user_context = new_user_context
         self.new_startup = new_startup

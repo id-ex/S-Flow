@@ -25,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.9.7"
+APP_VERSION = "1.9.8"
 
 SYSTEM_PROMPT = (
     "Ты — профессиональный корректор ASR-текста. Твоя задача — сделать текст грамотным, сохраняя при этом исходную структуру и смысл сказанного.\n\n"
@@ -64,17 +64,10 @@ DEFAULT_SETTINGS = {
     "translation_hotkey": "alt+t",
     "cancel_hotkey": "alt+c",
     "app_language": "ru",
-    "language": "ru",
-    "transcription_language": "ru",
-    "correction_model": "gpt-4o-mini",
     "use_llm_correction": True,
-    "transcription_model": "whisper-1",
     "context_window_chars": 1000,
     "user_context": "Programming, devops, ai prompt engenering.",
     "startup": False,
-    "price_whisper": 0.006,
-    "price_gpt_input": 0.15,
-    "price_gpt_output": 0.6
 }
 # Retry Configuration
 MAX_RETRIES = 3
@@ -96,7 +89,21 @@ def load_settings():
     try:
         if os.path.exists(SETTINGS_PATH):
             with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
+                settings = json.load(f)
+                # Migration: If old "api_key" exists but new keys don't, try to migrate it to openai_api_key
+                # (Assuming old key was OpenAI, or user can move it manually)
+                if "api_key" in settings:
+                    if not settings.get("openai_api_key"):
+                        settings["openai_api_key"] = settings["api_key"]
+                    # Remove old key to clean up
+                    del settings["api_key"]
+                
+                # Merge with defaults to ensure all keys exist
+                for key, value in DEFAULT_SETTINGS.items():
+                    if key not in settings:
+                        settings[key] = value
+                
+                return settings
         else:
             # Создаем настройки по умолчанию, если файл не существует
             save_settings_file(DEFAULT_SETTINGS)
@@ -116,14 +123,20 @@ def save_settings_file(settings):
         return False
 
 
-def get_openai_key():
-    key = os.getenv("OPENAI_API_KEY")
-    if not key:
-        logger.warning("OPENAI_API_KEY not found in environment variables.")
-    return key
+def get_keys(settings=None):
+    if settings is None:
+        settings = load_settings()
+    return {
+        "openai_api_key": settings.get("openai_api_key", ""),
+        "groq_api_key": settings.get("groq_api_key", ""),
+    }
 
 
 def get_model_config(settings=None):
+    """
+    Deprecated: Retained for compatibility if needed by imports.
+    Models are now hardcoded in ApiClient, but this structure avoids ImportErrors.
+    """
     if settings is None:
         settings = load_settings()
     return {
