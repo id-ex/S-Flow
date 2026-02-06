@@ -13,6 +13,8 @@
     "error_rate_limit": "Error: Rate Limit Exceeded",
     "error_auth": "Error: Invalid API Key",
     "error_no_speech": "No speech detected",
+    "use_llm_label": "AI Recognition Enhancement",
+    "model_label": "Model:",
     "settings_title": "S-Flow Settings",
     "hotkey_label": "Activation Hotkey:",
     "api_key_label": "OpenAI API Key:",

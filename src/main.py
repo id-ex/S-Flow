@@ -45,6 +45,7 @@ class ProcessingWorker(QThread):
         context_chars: int,
         user_context: str = "",
         is_translation: bool = False,
+        use_llm_correction: bool = True,
     ):
         super().__init__()
         self.api_client = api_client
@@ -54,6 +55,7 @@ class ProcessingWorker(QThread):
         self.context_chars = context_chars
         self.user_context = user_context
         self.is_translation = is_translation
+        self.use_llm_correction = use_llm_correction
 
     def run(self):
         try:
@@ -63,15 +65,21 @@ class ProcessingWorker(QThread):
 
             if raw_text and not raw_text.startswith("Error"):
                 logger.info(f"Transcription result: {raw_text[:50]}...")
-                corrected_text, gpt_usage = self.api_client.correct_text(
-                    raw_text,
-                    self.history,
-                    self.system_prompt,
-                    self.context_chars,
-                    self.user_context,
-                    is_translation=self.is_translation,
-                )
-                usage_stats.update(gpt_usage)
+                
+                if self.use_llm_correction or self.is_translation:
+                    corrected_text, gpt_usage = self.api_client.correct_text(
+                        raw_text,
+                        self.history,
+                        self.system_prompt,
+                        self.context_chars,
+                        self.user_context,
+                        is_translation=self.is_translation,
+                    )
+                    usage_stats.update(gpt_usage)
+                else:
+                    logger.info("LLM correction disabled, using raw text.")
+                    corrected_text = raw_text
+
                 self.finished.emit(raw_text, corrected_text, usage_stats)
             elif raw_text == "":
                 # Handle detected silence or filtered artifacts
@@ -195,6 +203,7 @@ class AppController(QObject):
         logger.info("Hotkeys stopped for settings dialog")
 
         current_lang = get_current_language()
+
         dialog = SettingsDialog(
             None,
             self.settings.get("hotkey", "ctrl+alt+s"),
@@ -203,6 +212,7 @@ class AppController(QObject):
             self.settings.get("cancel_hotkey", "ctrl+alt+x"),
             self.settings.get("translation_hotkey", "ctrl+alt+t"),
             self.settings.get("startup", False),
+            self.settings.get("use_llm_correction", True),
         )
         # Manually set context because we passed None as parent
         dialog.context_input.setPlainText(self.settings.get("user_context", ""))
@@ -271,6 +281,12 @@ class AppController(QObject):
                 self.settings["startup"] = dialog.new_startup
                 set_autostart(dialog.new_startup)
                 logger.info(f"Startup setting updated to {dialog.new_startup}")
+                changes = True
+
+            # Update LLM Correction
+            if dialog.use_llm_correction != self.settings.get("use_llm_correction", True):
+                self.settings["use_llm_correction"] = dialog.use_llm_correction
+                logger.info(f"LLM Correction enabled: {dialog.use_llm_correction}")
                 changes = True
 
             if changes:
@@ -383,6 +399,7 @@ class AppController(QObject):
 
         context_chars = self.settings.get("context_window_chars", 3000)
         user_context = self.settings.get("user_context", "")
+        use_llm = self.settings.get("use_llm_correction", True)
 
         self.worker = ProcessingWorker(
             self.api_client,
@@ -392,6 +409,7 @@ class AppController(QObject):
             context_chars,
             user_context,
             is_translation=is_translation,
+            use_llm_correction=use_llm,
         )
         self.worker.finished.connect(self.on_processing_finished)
         self.worker.start()

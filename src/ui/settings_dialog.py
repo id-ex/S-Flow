@@ -75,6 +75,7 @@ class SettingsDialog(QDialog):
         cancel_hotkey: str = "ctrl+alt+x",
         translation_hotkey: str = "ctrl+alt+t",
         current_startup: bool = False,
+        use_llm_correction: bool = True,
     ):
         super().__init__(parent)
         self.new_hotkey = current_hotkey
@@ -83,12 +84,13 @@ class SettingsDialog(QDialog):
         self.new_api_key = current_api_key
         self.new_lang = current_lang
         self.new_startup = current_startup
+        self.use_llm_correction = use_llm_correction
 
         from core.config import APP_VERSION
 
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-        self.setFixedSize(400, 520)  # Reverted width after simplifying labels
+        self.setFixedSize(400, 540)  # Optimized height after removing model selection
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
@@ -110,23 +112,29 @@ class SettingsDialog(QDialog):
         self.layout.addWidget(QLabel(tr("cancel_hotkey_label")))
         self.cancel_hotkey_input = HotkeyEdit(cancel_hotkey)
         self.layout.addWidget(self.cancel_hotkey_input)
+        self.layout.addSpacing(15) # Gap after hotkeys group
 
-        # API Key
+        # API Key & AI
         self.layout.addWidget(QLabel(tr("api_key_label")))
         self.api_input = QLineEdit(current_api_key)
         self.api_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.layout.addWidget(self.api_input)
 
+        self.llm_check = QCheckBox(tr("use_llm_label"))
+        self.llm_check.setChecked(use_llm_correction)
+        self.layout.addWidget(self.llm_check)
+        self.layout.addSpacing(15) # Gap after API/AI group
+
         # User Context
         self.layout.addWidget(QLabel(tr("context_label")))
         self.context_input = QPlainTextEdit("")
         self.context_input.setPlaceholderText(tr("context_placeholder"))
-        self.context_input.setFixedHeight(80)
-        # Manually styling for now to match
+        self.context_input.setFixedHeight(70) # Slightly smaller for better fit
         self.context_input.setStyleSheet(
             "QPlainTextEdit { background-color: #3d3d3d; color: white; border: 1px solid #555; border-radius: 5px; padding: 5px; font-family: 'Segoe UI'; } QPlainTextEdit:focus { border: 2px solid #0078D4; background-color: #454545; }"
         )
         self.layout.addWidget(self.context_input)
+        self.layout.addSpacing(10)
 
         # Language & Startup Row
         lang_startup_layout = QHBoxLayout()
@@ -140,7 +148,7 @@ class SettingsDialog(QDialog):
             self.lang_combo.setCurrentIndex(index)
         lang_startup_layout.addWidget(self.lang_combo)
 
-        lang_startup_layout.addSpacing(10)
+        lang_startup_layout.addSpacing(15)
 
         self.startup_check = QCheckBox(tr("startup_label"))
         self.startup_check.setChecked(current_startup)
@@ -149,6 +157,7 @@ class SettingsDialog(QDialog):
         lang_startup_layout.addStretch()
 
         self.layout.addLayout(lang_startup_layout)
+        self.layout.addSpacing(10)
 
         # Buttons
         btn_layout = QHBoxLayout()
@@ -178,6 +187,7 @@ class SettingsDialog(QDialog):
         new_lang = self.lang_combo.currentData()
         new_user_context = self.context_input.toPlainText().strip()
         new_startup = self.startup_check.isChecked()
+        new_use_llm = self.llm_check.isChecked()
 
         if not new_hotkey:
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
@@ -194,6 +204,7 @@ class SettingsDialog(QDialog):
         self.new_lang = new_lang
         self.new_user_context = new_user_context
         self.new_startup = new_startup
+        self.use_llm_correction = new_use_llm
         self.accept()
 
     def open_logs(self):

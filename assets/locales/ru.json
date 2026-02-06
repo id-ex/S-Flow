@@ -11,6 +11,8 @@
     "error_rate_limit": "Ошибка: Превышен лимит запросов",
     "error_auth": "Ошибка: Неверный API Key",
     "error_no_speech": "Речь не обнаружена",
+    "use_llm_label": "Улучшение распознавания с помощью ИИ",
+    "model_label": "Модель:",
     "settings_title": "Настройки S-Flow",
     "hotkey_label": "Комбинация клавиш активации:",
     "api_key_label": "OpenAI API Key:",

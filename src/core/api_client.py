@@ -132,6 +132,10 @@ class ApiClient:
                 "субтитры сделал",
                 "озвучка:",
                 "перевод:",
+                "приятного аппетита",
+                "с вами был игорь негода",
+                "подписывайтесь на мой канал",
+                "игорь негода",
             ]
             
             text_lower = text.lower().replace(".", "").replace(",", "").strip()
@@ -265,3 +269,4 @@ class ApiClient:
         except Exception as e:
             logger.exception(f"Correction error: {e}")
             return text, {}
+

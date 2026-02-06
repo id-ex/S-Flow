@@ -25,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.9.6"
+APP_VERSION = "1.9.7"
 
 SYSTEM_PROMPT = (
     "Ты — профессиональный корректор ASR-текста. Твоя задача — сделать текст грамотным, сохраняя при этом исходную структуру и смысл сказанного.\n\n"
@@ -67,6 +67,7 @@ DEFAULT_SETTINGS = {
     "language": "ru",
     "transcription_language": "ru",
     "correction_model": "gpt-4o-mini",
+    "use_llm_correction": True,
     "transcription_model": "whisper-1",
     "context_window_chars": 1000,
     "user_context": "Programming, devops, ai prompt engenering.",
@@ -75,7 +76,6 @@ DEFAULT_SETTINGS = {
     "price_gpt_input": 0.15,
     "price_gpt_output": 0.6
 }
-
 # Retry Configuration
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0
