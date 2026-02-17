@@ -404,8 +404,9 @@ class AppController(QObject):
 
         if self.audio_recorder.recording:
             # Stop recording without processing
-            path = self.audio_recorder.stop_recording()
-            logger.info(f"Recording cancelled. File {path} discarded/ignored.")
+            audio_chunks = self.audio_recorder.stop_recording()
+            chunk_count = len(audio_chunks) if audio_chunks else 0
+            logger.info(f"Recording cancelled. {chunk_count} audio chunks discarded.")
             self.overlay.show_message(tr("canceled"), duration=1000)
 
         elif self.is_processing:
