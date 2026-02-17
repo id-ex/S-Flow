@@ -8,7 +8,7 @@ Uses JSON files for translations and provides fallback to key if translation not
 import json
 import os
 import logging
-from .config import load_settings
+from .config import load_settings, get_resource_path
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +40,6 @@ class LocaleManager:
         """
         self.current_lang = lang_code
         try:
-            from .config import get_resource_path
-
             locale_path = get_resource_path(
                 os.path.join("assets", "locales", f"{lang_code}.json")
             )

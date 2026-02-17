@@ -101,6 +101,15 @@ class TestAudioRecorder:
         assert recorder.channels == 1
         assert recorder.recording is False
         assert recorder.stream is None
+        assert recorder.on_error is None
+
+    def test_recorder_initialization_with_on_error(self):
+        """Test recorder initialization with on_error callback"""
+        from core.audio_recorder import AudioRecorder
+
+        error_handler = Mock()
+        recorder = AudioRecorder(on_error=error_handler)
+        assert recorder.on_error is error_handler
 
     def test_recorder_custom_parameters(self):
         """Test recorder with custom parameters"""
@@ -126,8 +135,31 @@ class TestAudioRecorder:
         mock_stream.start.assert_called_once()
 
     @patch('core.audio_recorder.sd')
-    def test_stop_recording(self, mock_sd):
-        """Test recording stop"""
+    def test_stop_recording_returns_list(self, mock_sd):
+        """Test recording stop returns list of chunks (not BytesIO)"""
+        from core.audio_recorder import AudioRecorder
+        import numpy as np
+
+        mock_stream = MagicMock()
+        mock_sd.InputStream.return_value = mock_stream
+
+        recorder = AudioRecorder()
+        recorder.start_recording()
+        
+        # Simulate audio data in queue
+        recorder.audio_queue.put(np.zeros((1600, 1), dtype=np.int16))
+        
+        result = recorder.stop_recording()
+
+        assert recorder.recording is False
+        assert isinstance(result, list)
+        assert len(result) == 1
+        mock_stream.stop.assert_called_once()
+        mock_stream.close.assert_called_once()
+
+    @patch('core.audio_recorder.sd')
+    def test_stop_recording_no_data(self, mock_sd):
+        """Test stop recording with no audio data"""
         from core.audio_recorder import AudioRecorder
 
         mock_stream = MagicMock()
@@ -135,20 +167,64 @@ class TestAudioRecorder:
 
         recorder = AudioRecorder()
         recorder.start_recording()
-        recorder.stop_recording()
+        result = recorder.stop_recording()
+
+        assert result is None
+
+    def test_encode_wav_too_short(self):
+        """Test encode_wav rejects too-short recordings"""
+        from core.audio_recorder import AudioRecorder
+        import numpy as np
+
+        # 0.1s at 16000Hz = 1600 samples, below 0.4s threshold
+        frames = [np.zeros((1600, 1), dtype=np.int16)]
+        result = AudioRecorder.encode_wav(frames, sample_rate=16000)
+        assert result is None
+
+    def test_encode_wav_silence(self):
+        """Test encode_wav rejects silent recordings"""
+        from core.audio_recorder import AudioRecorder
+        import numpy as np
+
+        # 1s of silence at 16000Hz
+        frames = [np.zeros((16000, 1), dtype=np.int16)]
+        result = AudioRecorder.encode_wav(frames, sample_rate=16000)
+        assert result is None
+
+    def test_encode_wav_success(self):
+        """Test encode_wav returns BytesIO for valid audio"""
+        from core.audio_recorder import AudioRecorder
+        import numpy as np
+        import io
+
+        # 1s of non-silent audio at 16000Hz
+        audio = np.random.randint(-500, 500, (16000, 1), dtype=np.int16)
+        frames = [audio]
+        result = AudioRecorder.encode_wav(frames, sample_rate=16000)
+        assert isinstance(result, io.BytesIO)
+
+    @patch('core.audio_recorder.sd')
+    def test_start_recording_error_with_callback(self, mock_sd):
+        """Test on_error callback is called when microphone fails"""
+        from core.audio_recorder import AudioRecorder
+
+        mock_sd.InputStream.side_effect = Exception("No microphone")
+        error_handler = Mock()
+
+        recorder = AudioRecorder(on_error=error_handler)
+        recorder.start_recording()
 
         assert recorder.recording is False
-        mock_stream.stop.assert_called_once()
-        mock_stream.close.assert_called_once()
+        error_handler.assert_called_once_with("No microphone")
 
 
 class TestTextProcessor:
     """Test text processor"""
 
-    @patch('core.text_process.time')
+    @patch('core.text_process.QTimer')
     @patch('core.text_process.pyperclip')
     @patch('core.text_process.keyboard')
-    def test_paste_text(self, mock_keyboard, mock_pyperclip, mock_time):
+    def test_paste_text(self, mock_keyboard, mock_pyperclip, mock_qtimer):
         """Test text paste functionality"""
         from core.text_process import TextProcessor
 
@@ -156,8 +232,7 @@ class TestTextProcessor:
         TextProcessor.paste_text(test_text)
 
         mock_pyperclip.copy.assert_called_once_with(test_text)
-        mock_keyboard.send.assert_called_once_with('ctrl+v')
-        mock_time.sleep.assert_called_once_with(0.2)
+        mock_qtimer.singleShot.assert_called_once()
 
 
 

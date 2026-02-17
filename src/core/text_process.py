@@ -7,8 +7,8 @@ using keyboard simulation.
 
 import pyperclip
 import keyboard
-import time
 import logging
+from PyQt6.QtCore import QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class TextProcessor:
 
         Note:
             Uses pyperclip to copy text to clipboard and keyboard.send() to
-            simulate Ctrl+V paste action. Waits 0.2s for clipboard update.
+            simulate Ctrl+V paste action. Uses QTimer for non-blocking delay.
         """
         if not text:
             return
@@ -37,12 +37,10 @@ class TextProcessor:
             # Copy new text
             pyperclip.copy(text)
 
-            # Simulating Ctrl+V
-            # Wait a bit for clipboard update.
-            # 0.1 is usually enough, but 0.2 is safer for slower apps.
-            time.sleep(0.2)
-            keyboard.send("ctrl+v")
+            # Non-blocking delay for clipboard update, then simulate Ctrl+V
+            QTimer.singleShot(200, lambda: keyboard.send("ctrl+v"))
             logger.info("Text pasted via keyboard simulation.")
 
         except Exception as e:
             logger.error(f"Failed to paste text: {e}")
+

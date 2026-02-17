@@ -7,7 +7,7 @@ using the keyboard library.
 
 import keyboard
 import logging
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QMetaObject, Qt
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,8 @@ class HotkeyManager(QObject):
     def on_trigger(self) -> None:
         """Handle hotkey trigger event."""
         logger.info(f"Hotkey {self.combination} triggered")
-        self.triggered.emit()
+        # Thread-safe emit: keyboard callbacks run in non-GUI thread
+        QMetaObject.invokeMethod(self, "triggered", Qt.ConnectionType.QueuedConnection)
 
     def update_hotkey(self, new_combination: str) -> bool:
         """

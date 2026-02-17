@@ -1,5 +1,6 @@
 import sys
 import os
+import io
 import threading
 import json
 import logging
@@ -38,7 +39,9 @@ class ProcessingWorker(QThread):
     def __init__(
         self,
         api_client: ApiClient,
-        audio_buffer: any, # BytesIO
+        audio_frames: list,
+        sample_rate: int,
+        channels: int,
         history: list,
         system_prompt: str,
         context_chars: int,
@@ -48,7 +51,9 @@ class ProcessingWorker(QThread):
     ):
         super().__init__()
         self.api_client = api_client
-        self.audio_buffer = audio_buffer
+        self.audio_frames = audio_frames
+        self.sample_rate = sample_rate
+        self.channels = channels
         self.history = history
         self.system_prompt = system_prompt
         self.context_chars = context_chars
@@ -57,10 +62,21 @@ class ProcessingWorker(QThread):
         self.use_llm_correction = use_llm_correction
 
     def run(self):
+        audio_buffer = None
         try:
+            # Encode WAV from raw chunks (heavy operation, done in worker thread)
+            logger.info("Encoding WAV from raw audio chunks...")
+            audio_buffer = AudioRecorder.encode_wav(
+                self.audio_frames,
+                sample_rate=self.sample_rate,
+                channels=self.channels,
+            )
+            if audio_buffer is None:
+                self.finished.emit("", "NoSpeech", {})
+                return
+
             logger.info("Transcribing audio...")
-            # Transcribe now takes buffer and returns (text, duration, provider)
-            raw_text, duration, provider = self.api_client.transcribe(self.audio_buffer)
+            raw_text, duration, provider = self.api_client.transcribe(audio_buffer)
             usage_stats = {"whisper_seconds": duration, "prompt_tokens": 0, "completion_tokens": 0, "provider": provider}
 
             if raw_text and not raw_text.startswith("Error"):
@@ -84,7 +100,6 @@ class ProcessingWorker(QThread):
 
                 self.finished.emit(raw_text, corrected_text, usage_stats)
             elif raw_text == "":
-                # Handle detected silence or filtered artifacts
                 logger.info("No speech detected or filtered artifact.")
                 self.finished.emit("", "NoSpeech", usage_stats)
             else:
@@ -95,11 +110,11 @@ class ProcessingWorker(QThread):
             logger.exception("Worker thread error")
             self.finished.emit("", tr("error_unknown"), {})
         finally:
-            # Close buffer if needed, though BytesIO automanages memory usually
-            try:
-                self.audio_buffer.close()
-            except:
-                pass
+            if audio_buffer:
+                try:
+                    audio_buffer.close()
+                except:
+                    pass
 
 
 class AppController(QObject):
@@ -128,13 +143,19 @@ class AppController(QObject):
 
         # API & Logic
         self.api_client = self._create_api_client()
-        self.audio_recorder = AudioRecorder()
+        self.audio_recorder = AudioRecorder(
+            on_error=lambda msg: self.overlay.show_message(
+                f"{tr('error_title')}: {msg}", duration=4000
+            )
+        )
         self.stats_manager = StatsManager()
         self.update_manager = UpdateManager()
 
         # Activation Hotkey
         self.hotkey_manager = HotkeyManager(self.settings.get("hotkey", "ctrl+alt+s"))
-        self.hotkey_manager.triggered.connect(self.toggle_standard_recording)
+        self.hotkey_manager.triggered.connect(
+            self.toggle_standard_recording, Qt.ConnectionType.QueuedConnection
+        )
         self.hotkey_manager.start()
 
         # Translation Hotkey
@@ -142,7 +163,7 @@ class AppController(QObject):
             self.settings.get("translation_hotkey", "ctrl+alt+t")
         )
         self.translation_hotkey_manager.triggered.connect(
-            self.toggle_translation_recording
+            self.toggle_translation_recording, Qt.ConnectionType.QueuedConnection
         )
         self.translation_hotkey_manager.start()
 
@@ -160,7 +181,9 @@ class AppController(QObject):
         self.cancel_hotkey_manager = HotkeyManager(
             self.settings.get("cancel_hotkey", "ctrl+alt+x")
         )
-        self.cancel_hotkey_manager.triggered.connect(self.cancel_operation)
+        self.cancel_hotkey_manager.triggered.connect(
+            self.cancel_operation, Qt.ConnectionType.QueuedConnection
+        )
         self.cancel_hotkey_manager.start()
 
         self.history = []
@@ -413,25 +436,26 @@ class AppController(QObject):
             return
 
         if self.audio_recorder.recording:
-            # Stop
-            audio_path = self.audio_recorder.stop_recording()
-            if audio_path:
+            # Stop — returns raw chunks (list of numpy arrays)
+            audio_chunks = self.audio_recorder.stop_recording()
+            if audio_chunks:
                 msg_key = (
                     "translating"
                     if self.current_mode == "translation"
                     else "recognizing"
                 )
                 self.overlay.show_message(tr(msg_key), animate=True)
-                self.process_audio(audio_path)
+                self.process_audio_chunks(audio_chunks)
             else:
                 self.overlay.show_message(tr("error_no_speech"), duration=2000)
-                logger.warning("Recording stopped but no audio path returned (silence/short)")
+                logger.warning("Recording stopped but no audio chunks returned")
         else:
             # Start
             self.audio_recorder.start_recording()
             self.overlay.show_message(tr("recording_started"))
 
-    def process_audio(self, audio_path):
+    def process_audio_chunks(self, audio_chunks):
+        """Process raw audio chunks in a background worker thread."""
         self.is_processing = True
         is_translation = self.current_mode == "translation"
 
@@ -441,9 +465,15 @@ class AppController(QObject):
         user_context = self.settings.get("user_context", "")
         use_llm = self.settings.get("use_llm_correction", True)
 
+        # Clean up previous worker if exists
+        if hasattr(self, 'worker') and self.worker is not None:
+            self.worker.deleteLater()
+
         self.worker = ProcessingWorker(
             self.api_client,
-            audio_path,
+            audio_chunks,
+            self.audio_recorder.sample_rate,
+            self.audio_recorder.channels,
             self.history,
             prompt,
             context_chars,
@@ -457,6 +487,11 @@ class AppController(QObject):
     def on_processing_finished(self, raw_text, corrected_text, usage_stats):
         self.is_processing = False
         self.overlay.hide_overlay()
+
+        # Clean up worker
+        if hasattr(self, 'worker') and self.worker is not None:
+            self.worker.deleteLater()
+            self.worker = None
 
         if usage_stats:
             # Stats for cost calculation:
@@ -540,18 +575,6 @@ def main():
     finally:
         if mutex:
             ctypes.windll.kernel32.CloseHandle(mutex)
-
-    # Set AppUserModelID for Windows Taskbar Icon
-    myappid = "sflow.recognition.app.1.0"  # arbitrary string
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-
-    app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(False)
-    app.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-
-    controller = AppController(app)
-
-    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

@@ -23,6 +23,12 @@ class StatusOverlay(QWidget):
             font-family: 'Segoe UI';
         """)
         layout.addWidget(self.label)
+
+        # Single reusable animation timer (avoids memory leak)
+        self.base_text = ""
+        self.dot_count = 0
+        self.anim_timer = QTimer(self)
+        self.anim_timer.timeout.connect(self.update_animation)
         
         self.hide()
 
@@ -32,16 +38,13 @@ class StatusOverlay(QWidget):
         self.center_on_screen()
         self.show()
         
-        # Reset previous animation
-        if hasattr(self, 'anim_timer') and self.anim_timer.isActive():
-            self.anim_timer.stop()
+        # Stop any running animation
+        self.anim_timer.stop()
             
         if animate:
             self.base_text = text.rstrip(".")
             self.dot_count = 0
-            self.anim_timer = QTimer(self)
-            self.anim_timer.timeout.connect(self.update_animation)
-            self.anim_timer.start(500) # Update every 500ms
+            self.anim_timer.start(500)  # Update every 500ms
             
         if duration:
             QTimer.singleShot(duration, self.hide)
@@ -54,8 +57,7 @@ class StatusOverlay(QWidget):
         self.center_on_screen()
 
     def hide_overlay(self):
-        if hasattr(self, 'anim_timer'):
-            self.anim_timer.stop()
+        self.anim_timer.stop()
         self.hide()
 
     def center_on_screen(self):
@@ -65,3 +67,4 @@ class StatusOverlay(QWidget):
             screen.width() // 2 - size.width() // 2,
             screen.height() - 100  # Positioned at bottom center
         )
+

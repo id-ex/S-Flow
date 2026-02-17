@@ -41,6 +41,66 @@ class UpdateDownloader(QThread):
             logger.exception("Download failed")
             self.finished.emit(False, str(e))
 
+class UpdateChecker(QThread):
+    """Thread for checking for updates via GitHub API."""
+    update_available = pyqtSignal(str, str, str)  # version, description, download_url
+    not_found = pyqtSignal()
+    error = pyqtSignal(str)
+
+    def __init__(self, api_url: str, manual: bool = False):
+        super().__init__()
+        self.api_url = api_url
+        self.manual = manual
+
+    def run(self):
+        try:
+            response = httpx.get(self.api_url, follow_redirects=True)
+            if response.status_code == 200:
+                data = response.json()
+                latest_version = data["tag_name"].lstrip("v")
+
+                if self._is_newer(latest_version, APP_VERSION):
+                    # Find S-Flow.exe in assets
+                    download_url = None
+                    for asset in data.get("assets", []):
+                        if asset["name"] == "S-Flow.exe":
+                            download_url = asset["browser_download_url"]
+                            break
+
+                    if download_url:
+                        self.update_available.emit(
+                            latest_version,
+                            data.get("body", ""),
+                            download_url
+                        )
+                    else:
+                        logger.warning("No S-Flow.exe found in latest release assets")
+                        if self.manual:
+                            self.not_found.emit()
+                else:
+                    logger.info(f"App is up to date (Local: {APP_VERSION}, Remote: {latest_version})")
+                    if self.manual:
+                        self.not_found.emit()
+            else:
+                logger.error(f"GitHub API returned {response.status_code}")
+                if self.manual:
+                    self.error.emit(f"GitHub API Error: {response.status_code}")
+        except Exception as e:
+            logger.exception("Update check failed")
+            if self.manual:
+                self.error.emit(str(e))
+
+    @staticmethod
+    def _is_newer(latest: str, current: str) -> bool:
+        """Simple semantic version comparison."""
+        try:
+            l_parts = [int(p) for p in latest.split(".")]
+            c_parts = [int(p) for p in current.split(".")]
+            return l_parts > c_parts
+        except ValueError:
+            return latest > current
+
+
 class UpdateManager(QObject):
     """Manages application updates via GitHub Releases."""
     update_available = pyqtSignal(str, str, str)  # version, description, download_url
@@ -57,52 +117,12 @@ class UpdateManager(QObject):
 
     def check_for_updates(self, manual: bool = False):
         """Check for latest release on GitHub."""
-        def _check():
-            try:
-                response = httpx.get(self.api_url, follow_redirects=True)
-                if response.status_code == 200:
-                    data = response.json()
-                    latest_version = data["tag_name"].lstrip("v")
+        self._checker = UpdateChecker(self.api_url, manual)
+        self._checker.update_available.connect(self.update_available.emit)
+        self._checker.not_found.connect(self.not_found.emit)
+        self._checker.error.connect(self.error.emit)
+        self._checker.start()
 
-                    if self._is_newer(latest_version, APP_VERSION):
-                        # Find S-Flow.exe in assets
-                        download_url = None
-                        for asset in data.get("assets", []):
-                            if asset["name"] == "S-Flow.exe":
-                                download_url = asset["browser_download_url"]
-                                break
-
-                        if download_url:
-                            self.update_available.emit(
-                                latest_version,
-                                data.get("body", ""),
-                                download_url
-                            )
-                        else:
-                            logger.warning("No S-Flow.exe found in latest release assets")
-                            if manual: self.not_found.emit()
-                    else:
-                        logger.info(f"App is up to date (Local: {APP_VERSION}, Remote: {latest_version})")
-                        if manual: self.not_found.emit()
-                else:
-                    logger.error(f"GitHub API returned {response.status_code}")
-                    if manual: self.error.emit(f"GitHub API Error: {response.status_code}")
-            except Exception as e:
-                logger.exception("Update check failed")
-                if manual: self.error.emit(str(e))
-
-        # Run in a simple thread to avoid blocking UI
-        import threading
-        threading.Thread(target=_check, daemon=True).start()
-
-    def _is_newer(self, latest: str, current: str) -> bool:
-        """Simple semantic version comparison."""
-        try:
-            l_parts = [int(p) for p in latest.split(".")]
-            c_parts = [int(p) for p in current.split(".")]
-            return l_parts > c_parts
-        except ValueError:
-            return latest > current
 
     def start_download(self, url: str):
         """Start downloading the new executable."""
