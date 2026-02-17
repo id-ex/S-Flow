@@ -34,8 +34,9 @@ class HotkeyManager(QObject):
 
     def start(self) -> None:
         """Start listening for hotkey combination."""
-        # We use a non-blocking hook
-        keyboard.add_hotkey(self.combination, self.on_trigger)
+        # We use a non-blocking hook with suppress=True to prevent
+        # the hotkey from being passed to other applications
+        keyboard.add_hotkey(self.combination, self.on_trigger, suppress=True)
 
     def stop(self) -> None:
         """Stop listening for hotkey combination."""
