@@ -372,5 +372,413 @@ class TestApiClient:
         assert call_args.kwargs['model'] == "llama-3.3-70b-versatile"
 
 
+class TestExceptions:
+    """Test custom exceptions"""
+
+    def test_sflow_error_basic(self):
+        """Test SFlowError basic functionality"""
+        from core.exceptions import SFlowError
+
+        error = SFlowError("Technical message")
+        assert str(error) == "Technical message"
+        assert error.user_message == "Technical message"
+
+    def test_sflow_error_with_user_message(self):
+        """Test SFlowError with custom user message"""
+        from core.exceptions import SFlowError
+
+        error = SFlowError("Technical message", "User friendly message")
+        assert str(error) == "Technical message"
+        assert error.user_message == "User friendly message"
+
+    def test_authentication_error(self):
+        """Test AuthenticationError"""
+        from core.exceptions import AuthenticationError
+
+        error = AuthenticationError()
+        assert "Invalid API Key" in error.user_message
+
+    def test_transcription_error(self):
+        """Test TranscriptionError"""
+        from core.exceptions import TranscriptionError
+
+        error = TranscriptionError("Transcription failed")
+        assert "Transcription Failed" in error.user_message
+
+    def test_api_connection_error(self):
+        """Test APIConnectionError"""
+        from core.exceptions import APIConnectionError
+
+        error = APIConnectionError()
+        assert "No Connection" in error.user_message
+
+    def test_rate_limit_error(self):
+        """Test RateLimitError"""
+        from core.exceptions import RateLimitError
+
+        error = RateLimitError()
+        assert "Rate Limit" in error.user_message
+
+    def test_audio_recording_error(self):
+        """Test AudioRecordingError"""
+        from core.exceptions import AudioRecordingError
+
+        error = AudioRecordingError("Mic not found")
+        assert "Audio recording failed" in error.user_message
+
+    def test_configuration_error(self):
+        """Test ConfigurationError"""
+        from core.exceptions import ConfigurationError
+
+        error = ConfigurationError("Invalid config")
+        assert "Invalid config" in error.user_message
+
+    def test_hotkey_error(self):
+        """Test HotkeyError"""
+        from core.exceptions import HotkeyError
+
+        error = HotkeyError("Hotkey registration failed")
+        assert "Hotkey operation failed" in error.user_message
+
+
+class TestStatsManager:
+    """Test stats manager"""
+
+    def test_stats_manager_initialization(self):
+        """Test StatsManager initialization"""
+        from core.stats_manager import StatsManager
+
+        with patch('core.stats_manager.get_app_dir', return_value='.'):
+            with patch.object(StatsManager, 'load_stats', return_value={
+                "total_seconds": 0.0,
+                "total_prompt_tokens": 0,
+                "total_completion_tokens": 0,
+                "last_reset": "2024-01-01 00:00:00"
+            }):
+                manager = StatsManager()
+                assert manager.stats["total_seconds"] == 0.0
+
+    def test_add_usage(self):
+        """Test adding usage data"""
+        from core.stats_manager import StatsManager
+
+        with patch('core.stats_manager.get_app_dir', return_value='.'):
+            manager = StatsManager.__new__(StatsManager)
+            manager.stats = {
+                "total_seconds": 10.0,
+                "total_prompt_tokens": 100,
+                "total_completion_tokens": 50,
+                "last_reset": "2024-01-01"
+            }
+            manager.stats_path = "stats.json"
+            
+            with patch.object(manager, 'save_stats'):
+                manager.add_usage(whisper_seconds=5.0, prompt_tokens=50, completion_tokens=25)
+                
+                assert manager.stats["total_seconds"] == 15.0
+                assert manager.stats["total_prompt_tokens"] == 150
+                assert manager.stats["total_completion_tokens"] == 75
+
+    def test_calculate_costs(self):
+        """Test cost calculation"""
+        from core.stats_manager import StatsManager
+
+        with patch('core.stats_manager.get_app_dir', return_value='.'):
+            manager = StatsManager.__new__(StatsManager)
+            manager.stats = {
+                "total_seconds": 60.0,  # 1 minute
+                "total_prompt_tokens": 1000000,  # 1M tokens
+                "total_completion_tokens": 500000,  # 0.5M tokens
+                "last_reset": "2024-01-01"
+            }
+            
+            with patch.object(manager, 'get_pricing', return_value={
+                "whisper_price": 0.006,
+                "gpt_input_price": 0.15,
+                "gpt_output_price": 0.60
+            }):
+                costs = manager.calculate_costs()
+                
+                # Whisper: 1 min * $0.006 = $0.006
+                assert costs["whisper_cost"] == 0.006
+                # GPT input: 1M * $0.15/1M = $0.15
+                assert costs["gpt_input_cost"] == 0.15
+                # GPT output: 0.5M * $0.60/1M = $0.30
+                assert costs["gpt_output_cost"] == 0.30
+                # Total (use approx for floating point comparison)
+                assert abs(costs["total_cost"] - 0.456) < 0.0001
+
+    def test_reset_stats(self):
+        """Test stats reset"""
+        from core.stats_manager import StatsManager
+
+        with patch('core.stats_manager.get_app_dir', return_value='.'):
+            manager = StatsManager.__new__(StatsManager)
+            manager.stats = {
+                "total_seconds": 100.0,
+                "total_prompt_tokens": 1000,
+                "total_completion_tokens": 500,
+                "last_reset": "2024-01-01"
+            }
+            manager.stats_path = "stats.json"
+            
+            with patch.object(manager, 'save_stats'):
+                manager.reset_stats()
+                
+                assert manager.stats["total_seconds"] == 0.0
+                assert manager.stats["total_prompt_tokens"] == 0
+                assert manager.stats["total_completion_tokens"] == 0
+
+    def test_get_pricing_defaults(self):
+        """Test getting default pricing"""
+        from core.stats_manager import StatsManager
+
+        with patch('core.stats_manager.load_settings', return_value={}):
+            manager = StatsManager.__new__(StatsManager)
+            pricing = manager.get_pricing()
+            
+            assert pricing["whisper_price"] == 0.006
+            assert pricing["gpt_input_price"] == 0.15
+            assert pricing["gpt_output_price"] == 0.60
+
+
+class TestConfigExtended:
+    """Extended tests for config module"""
+
+    def test_get_app_dir_frozen(self):
+        """Test get_app_dir when frozen (PyInstaller)"""
+        from core.config import get_app_dir
+
+        with patch.object(sys, 'frozen', True, create=True):
+            with patch('core.config.sys.executable', '/path/to/exe'):
+                result = get_app_dir()
+                assert result == os.path.dirname('/path/to/exe')
+
+    def test_get_resource_path_frozen(self):
+        """Test get_resource_path when frozen"""
+        from core.config import get_resource_path
+
+        # Create a mock sys module with _MEIPASS attribute
+        mock_sys = MagicMock()
+        mock_sys.frozen = True
+        mock_sys._MEIPASS = '/temp/meipass'
+        
+        with patch('core.config.sys', mock_sys):
+            result = get_resource_path('assets/icon.ico')
+            assert 'assets/icon.ico' in result
+
+    def test_save_settings_file_success(self):
+        """Test save_settings_file success"""
+        from core.config import save_settings_file
+
+        with patch('builtins.open', mock_open()):
+            with patch('core.config.SETTINGS_PATH', 'settings.json'):
+                result = save_settings_file({"test": "value"})
+                assert result is True
+
+    def test_save_settings_file_error(self):
+        """Test save_settings_file error handling"""
+        from core.config import save_settings_file
+
+        with patch('builtins.open', side_effect=PermissionError("No access")):
+            with patch('core.config.SETTINGS_PATH', 'settings.json'):
+                result = save_settings_file({"test": "value"})
+                assert result is False
+
+    def test_get_keys(self):
+        """Test get_keys function"""
+        from core.config import get_keys
+
+        settings = {"openai_api_key": "key1", "groq_api_key": "key2"}
+        with patch('core.config.load_settings', return_value=settings):
+            keys = get_keys()
+            assert keys["openai_api_key"] == "key1"
+            assert keys["groq_api_key"] == "key2"
+
+    def test_load_settings_migration(self):
+        """Test settings migration from old api_key"""
+        from core.config import load_settings, DEFAULT_SETTINGS
+
+        old_settings = {"api_key": "old_key", "hotkey": "alt+a"}
+        
+        with patch('os.path.exists', return_value=True):
+            with patch('builtins.open', mock_open(read_data=json.dumps(old_settings))):
+                with patch('core.config.SETTINGS_PATH', 'settings.json'):
+                    settings = load_settings()
+                    # Old key should be migrated
+                    assert settings.get("openai_api_key") == "old_key"
+                    # Old key should be removed
+                    assert "api_key" not in settings
+
+    def test_load_settings_error(self):
+        """Test load_settings error handling"""
+        from core.config import load_settings, DEFAULT_SETTINGS
+
+        with patch('os.path.exists', return_value=True):
+            with patch('builtins.open', side_effect=json.JSONDecodeError("error", "", 0)):
+                with patch('core.config.SETTINGS_PATH', 'settings.json'):
+                    settings = load_settings()
+                    assert settings == DEFAULT_SETTINGS
+
+
+class TestApiClientExtended:
+    """Extended tests for API client"""
+
+    def test_process_text_normal(self):
+        """Test _process_text with normal text"""
+        from core.api_client import ApiClient
+
+        client = ApiClient()
+        text, duration, provider = client._process_text("Hello world", 5.0, "groq")
+        
+        assert text == "Hello world"
+        assert duration == 5.0
+        assert provider == "groq"
+
+    def test_process_text_hallucination(self):
+        """Test _process_text filters hallucinations"""
+        from core.api_client import ApiClient
+
+        client = ApiClient()
+        # Short text with hallucination artifact
+        text, duration, provider = client._process_text("редактор субтитров", 2.0, "groq")
+        
+        assert text == ""  # Should be filtered
+
+    def test_process_text_too_short(self):
+        """Test _process_text with too short text"""
+        from core.api_client import ApiClient
+
+        client = ApiClient()
+        text, duration, provider = client._process_text("a", 1.0, "groq")
+        
+        assert text == ""
+
+    def test_correct_text_no_client(self):
+        """Test correct_text when no client available"""
+        from core.api_client import ApiClient
+
+        client = ApiClient()  # No keys
+        text, usage = client.correct_text("Original text", provider="groq")
+        
+        assert text == "Original text"
+        assert usage == {}
+
+    @patch('core.api_client.OpenAI')
+    def test_correct_text_with_context(self, mock_openai):
+        """Test correct_text with previous messages context"""
+        from core.api_client import ApiClient
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+        
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "Corrected text"
+        mock_response.usage.prompt_tokens = 100
+        mock_response.usage.completion_tokens = 50
+        mock_client.chat.completions.create.return_value = mock_response
+
+        client = ApiClient(openai_key="test-key")
+        
+        previous_messages = [
+            {"text": "Previous message 1"},
+            {"text": "Previous message 2"}
+        ]
+        
+        text, usage = client.correct_text(
+            "Test text",
+            provider="openai",
+            previous_messages=previous_messages,
+            user_context="Programming context"
+        )
+        
+        assert text == "Corrected text"
+        assert usage["prompt_tokens"] == 100
+        
+        # Verify context was injected
+        call_args = mock_client.chat.completions.create.call_args
+        messages = call_args.kwargs['messages']
+        assert "Programming context" in messages[0]['content']
+
+    @patch('core.api_client.OpenAI')
+    def test_correct_text_translation_mode(self, mock_openai):
+        """Test correct_text in translation mode"""
+        from core.api_client import ApiClient
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+        
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "Translated text"
+        mock_response.usage.prompt_tokens = 50
+        mock_response.usage.completion_tokens = 20
+        mock_client.chat.completions.create.return_value = mock_response
+
+        client = ApiClient(openai_key="test-key")
+        
+        text, usage = client.correct_text(
+            "Текст для перевода",
+            provider="openai",
+            is_translation=True
+        )
+        
+        assert text == "Translated text"
+        
+        # Verify translation prompt was used
+        call_args = mock_client.chat.completions.create.call_args
+        messages = call_args.kwargs['messages']
+        assert "переводчик" in messages[0]['content'].lower()
+
+
+class TestHotkeyManager:
+    """Test hotkey manager"""
+
+    @patch('core.hotkey_manager.keyboard')
+    def test_hotkey_manager_start(self, mock_keyboard):
+        """Test hotkey manager start"""
+        from core.hotkey_manager import HotkeyManager
+
+        manager = HotkeyManager("ctrl+alt+s")
+        manager.start()
+        
+        mock_keyboard.add_hotkey.assert_called_once_with(
+            "ctrl+alt+s", manager.on_trigger, suppress=True
+        )
+
+    @patch('core.hotkey_manager.keyboard')
+    def test_hotkey_manager_stop(self, mock_keyboard):
+        """Test hotkey manager stop"""
+        from core.hotkey_manager import HotkeyManager
+
+        manager = HotkeyManager("ctrl+alt+s")
+        manager.stop()
+        
+        mock_keyboard.remove_hotkey.assert_called_once_with("ctrl+alt+s")
+
+    @patch('core.hotkey_manager.keyboard')
+    def test_update_hotkey_same(self, mock_keyboard):
+        """Test update_hotkey with same combination"""
+        from core.hotkey_manager import HotkeyManager
+
+        manager = HotkeyManager("ctrl+alt+s")
+        result = manager.update_hotkey("ctrl+alt+s")
+        
+        assert result is True
+        mock_keyboard.remove_hotkey.assert_not_called()
+
+    @patch('core.hotkey_manager.keyboard')
+    def test_update_hotkey_different(self, mock_keyboard):
+        """Test update_hotkey with different combination"""
+        from core.hotkey_manager import HotkeyManager
+
+        manager = HotkeyManager("ctrl+alt+s")
+        result = manager.update_hotkey("ctrl+alt+d")
+        
+        assert result is True
+        assert manager.combination == "ctrl+alt+d"
+        mock_keyboard.remove_hotkey.assert_called()
+        mock_keyboard.add_hotkey.assert_called()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
