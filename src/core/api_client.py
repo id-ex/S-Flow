@@ -199,20 +199,47 @@ class ApiClient:
     def _process_text(self, text: str, duration: float, provider: str) -> Tuple[str, float, str]:
         """Filter hallucinations and return result."""
         # Filter out known Whisper hallucinations
-        artifacts = [
+        # Strict artifacts (almost always hallucinations)
+        strict_artifacts = [
             "редактор субтитров", "а. синецкая", "корректор а. егорова",
             "субтитры а. синецкая", "текст предоставлен правообладателем",
-            "dimatorzok", "dima torzok", "субтитры сделал", "озвучка:",
-            "перевод:", "приятного аппетита", "с вами был игорь негода",
-            "подписывайтесь на мой канал", "игорь негода",
+            "dimatorzok", "dima torzok", "субтитры сделал", "с вами был игорь негода",
+            "игорь негода",
         ]
+
+        # Conditional artifacts with minimum valid duration (seconds)
+        # If audio is shorter than this, it's likely a glitch/click.
+        conditional_artifacts = {
+            "продолжение следует": 1.2,
+            "подписывайтесь на мой канал": 1.5,
+            "приятного аппетита": 1.0,
+            "озвучка:": 0.5,
+            "перевод:": 0.5,
+        }
         
         text_lower = text.lower().replace(".", "").replace(",", "").strip()
         
-        if any(art in text_lower for art in artifacts):
-            if len(text) < 100:
-                logger.warning(f"Whisper hallucination detected: {text}")
+        # Check strict artifacts
+        if any(art in text_lower for art in strict_artifacts):
+             if len(text) < 100:
+                logger.warning(f"Whisper strict hallucination detected: {text}")
                 return "", duration, provider
+
+        # Check conditional artifacts
+        for art, min_duration in conditional_artifacts.items():
+            if art in text_lower:
+                # Condition 1: Audio too short (physically impossible to say the phrase)
+                if duration < min_duration:
+                    logger.warning(f"Whisper hallucination (Too Fast {duration:.2f}s < {min_duration}s): {text}")
+                    return "", duration, provider
+                
+                # Condition 2: Audio too long (silence hallucination)
+                if duration > 5.0 and len(text) < 50:
+                    logger.warning(f"Whisper hallucination (Silence {duration:.2f}s > 5.0s): {text}")
+                    return "", duration, provider
+                
+        if len(text_lower.strip()) < 2:
+            return "", duration, provider
                 
         if len(text_lower.strip()) < 2:
             return "", duration, provider
