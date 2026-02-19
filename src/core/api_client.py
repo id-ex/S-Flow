@@ -19,6 +19,12 @@ import wave
 import io
 from typing import Callable, Any, Tuple
 from .config import get_model_config, MAX_RETRIES, RETRY_DELAY
+from .exceptions import (
+    AuthenticationError as SFlowAuthError,
+    RateLimitError as SFlowRateLimitError,
+    APIConnectionError as SFlowConnectionError,
+    TranscriptionError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -187,14 +193,21 @@ class ApiClient:
                 text = transcription.text.strip()
                 return self._process_text(text, duration, "openai")
 
-            except (AuthenticationError, ValueError):
-                logger.error("OpenAI Authentication failed.")
-                return "Error: Invalid API Key", 0.0, ""
+            except (AuthenticationError, ValueError) as e:
+                logger.error(f"OpenAI Authentication failed: {e}")
+                raise SFlowAuthError("OpenAI Authentication failed") from e
+            except (RateLimitError, APIConnectionError, APITimeoutError) as e:
+                 logger.error(f"OpenAI Connection/Rate Limit error: {e}")
+                 # Raise specific S-Flow errors
+                 if isinstance(e, RateLimitError):
+                     raise SFlowRateLimitError(str(e)) from e
+                 raise SFlowConnectionError(str(e)) from e
             except Exception as e:
                 logger.exception(f"OpenAI transcription failed: {e}")
-                return "Error: Transcription Failed", 0.0, ""
+                raise TranscriptionError(f"Transcription failed: {e}") from e
         
-        return "Error: No valid API provider configured", 0.0, ""
+        # If we reach here, no provider worked
+        raise TranscriptionError("No valid API provider configured or all attempts failed")
 
     def _process_text(self, text: str, duration: float, provider: str) -> Tuple[str, float, str]:
         """Filter hallucinations and return result."""
@@ -283,17 +296,10 @@ class ApiClient:
         try:
             # Default prompt if none provided
             if not system_prompt:
-                if is_translation:
-                    system_prompt = (
-                        "Ты — профессиональный переводчик. Твоя задача — перевести предоставленный текст, сохраняя смысл и учитывая контекст.\n"
-                        "### КОНТЕКСТ ДИАЛОГА:\n{{history}}\n"
-                        "### ПРАВИЛА:\n"
-                        "- Если текст на русском, переведи его на английский.\n"
-                        "- Если текст на английском, переведи его на русский.\n"
-                        "- Верни ТОЛЬКО переведенный текст."
-                    )
-                else:
-                    system_prompt = "Ты — помощник, который исправляет распознанный текст. Контекст:\n{{history}}"
+                # Fallback to a very basic prompt or raise error. 
+                # Since we want to enforce config usage, let's log warning and use a minimal fallback.
+                logger.warning("No system_prompt provided to correct_text, using minimal fallback.")
+                system_prompt = "Correct the text."
 
             # Construct context
             history_text = ""

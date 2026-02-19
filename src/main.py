@@ -28,6 +28,13 @@ from core.config import (
     SYSTEM_PROMPT,
     TRANSLATION_PROMPT,
 )
+from core.exceptions import (
+    SFlowError,
+    AuthenticationError,
+    RateLimitError,
+    APIConnectionError,
+    TranscriptionError
+)
 from core.locale_manager import tr, set_language, get_current_language
 
 logger = logging.getLogger(__name__)
@@ -79,33 +86,43 @@ class ProcessingWorker(QThread):
             raw_text, duration, provider = self.api_client.transcribe(audio_buffer)
             usage_stats = {"whisper_seconds": duration, "prompt_tokens": 0, "completion_tokens": 0, "provider": provider}
 
-            if raw_text and not raw_text.startswith("Error"):
-                logger.info(f"Transcription result ({provider}): {raw_text}")
-                
-                if self.use_llm_correction or self.is_translation:
-                    corrected_text, gpt_usage = self.api_client.correct_text(
-                        raw_text,
-                        provider,
-                        self.history,
-                        self.system_prompt,
-                        self.context_chars,
-                        self.user_context,
-                        is_translation=self.is_translation,
-                    )
-                    usage_stats.update(gpt_usage)
-                    logger.info(f"Corrected Result: {corrected_text}")
-                else:
-                    logger.info("LLM correction disabled, using raw text.")
-                    corrected_text = raw_text
-
-                self.finished.emit(raw_text, corrected_text, usage_stats)
-            elif raw_text == "":
+            if not raw_text:
                 logger.info("No speech detected or filtered artifact.")
                 self.finished.emit("", "NoSpeech", usage_stats)
-            else:
-                self.finished.emit(
-                    "", raw_text if raw_text else tr("error_transcription"), usage_stats
+                return
+
+            logger.info(f"Transcription result ({provider}): {raw_text}")
+            
+            if self.use_llm_correction or self.is_translation:
+                corrected_text, gpt_usage = self.api_client.correct_text(
+                    raw_text,
+                    provider,
+                    self.history,
+                    self.system_prompt,
+                    self.context_chars,
+                    self.user_context,
+                    is_translation=self.is_translation,
                 )
+                usage_stats.update(gpt_usage)
+                logger.info(f"Corrected Result: {corrected_text}")
+            else:
+                logger.info("LLM correction disabled, using raw text.")
+                corrected_text = raw_text
+
+            self.finished.emit(raw_text, corrected_text, usage_stats)
+
+        except AuthenticationError:
+            self.finished.emit("", tr("error_auth"), {})
+        except RateLimitError:
+             self.finished.emit("", tr("error_rate_limit"), {})
+        except APIConnectionError:
+             self.finished.emit("", tr("error_connection"), {})
+        except TranscriptionError:
+             self.finished.emit("", tr("error_transcription"), {})
+        except SFlowError as e:
+             # Generic SFlow handler
+             logger.error(f"SFlow Error: {e}")
+             self.finished.emit("", tr("error_unknown"), {})
         except Exception as e:
             logger.exception("Worker thread error")
             self.finished.emit("", tr("error_unknown"), {})

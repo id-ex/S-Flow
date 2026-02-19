@@ -9,7 +9,25 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch, mock_open
 
 # Add src to path
+# Add src to path
+# Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from core.exceptions import (
+    SFlowError,
+    AuthenticationError,
+    RateLimitError,
+    APIConnectionError,
+    TranscriptionError
+)
+
+from core.exceptions import (
+    SFlowError,
+    AuthenticationError,
+    RateLimitError,
+    APIConnectionError,
+    TranscriptionError
+)
 
 
 class TestConfig:
@@ -58,6 +76,66 @@ class TestConfig:
         assert config["transcription_model"] == "whisper-1"
         assert config["correction_model"] == "gpt-4o-mini"
         assert config["transcription_language"] == "ru"
+
+    @patch('core.config.get_app_dir')
+    def test_settings_creation_real(self, mock_get_app_dir, tmp_path):
+        """Test real creation of settings.json in temporary directory"""
+        from core.config import load_settings, DEFAULT_SETTINGS, SETTINGS_PATH
+        import json
+        
+        # We need to ensure load_settings uses our temp path.
+        # SETTINGS_PATH in core.config is a global constant computed at import time.
+        # Patching get_app_dir works if we reload the module or if SETTINGS_PATH wasn't cached?
+        # No, it's cached.
+        # We must patch 'core.config.SETTINGS_PATH' directly.
+        
+        temp_settings_path = tmp_path / "settings.json"
+        
+        with patch('core.config.SETTINGS_PATH', str(temp_settings_path)):
+            # Ensure file doesn't exist
+            if os.path.exists(temp_settings_path):
+                os.remove(temp_settings_path)
+                
+            settings = load_settings()
+            
+            assert os.path.exists(temp_settings_path)
+            # Default settings might define keys not in DEFAULT_SETTINGS? No.
+            # Compare keys or full dict
+            assert settings == DEFAULT_SETTINGS
+            
+            # verify content
+            with open(temp_settings_path, 'r', encoding='utf-8') as f:
+                content = json.load(f)
+                assert content == DEFAULT_SETTINGS
+
+    @patch('core.config.get_app_dir')
+    def test_settings_creation_real(self, mock_get_app_dir, tmp_path):
+        """Test real creation of settings.json in temporary directory"""
+        from core.config import load_settings, DEFAULT_SETTINGS, SETTINGS_PATH
+        
+        # Override SETTINGS_PATH logic by patching where it's used or ensuring we use a temp path
+        # config.py uses os.path.join(get_app_dir(), "settings.json") for SETTINGS_PATH
+        # But SETTINGS_PATH is a module-level constant computed at import time!
+        # Patching get_app_dir AFTER import might not change SETTINGS_PATH.
+        # However, we can patch core.config.SETTINGS_PATH directly.
+        
+        temp_settings_path = tmp_path / "settings.json"
+        mock_get_app_dir.return_value = str(tmp_path)
+        
+        with patch('core.config.SETTINGS_PATH', str(temp_settings_path)):
+            # Ensure file doesn't exist
+            if os.path.exists(temp_settings_path):
+                os.remove(temp_settings_path)
+                
+            settings = load_settings()
+            
+            assert os.path.exists(temp_settings_path)
+            assert settings == DEFAULT_SETTINGS
+            
+            # verify content
+            with open(temp_settings_path, 'r', encoding='utf-8') as f:
+                content = json.load(f)
+                assert content == DEFAULT_SETTINGS
 
 
 class TestLocaleManager:
@@ -273,11 +351,12 @@ class TestApiClient:
         assert client.openai_client is None
         assert client.groq_client is None
 
+    @patch('core.api_client.OpenAI')
     @patch('core.api_client.wave.open')
-    def test_transcribe_no_client(self, mock_wave_open):
-        """Test transcription when no clients are initialized"""
+    def test_transcribe_no_client(self, mock_wave_open, mock_openai):
+        """Test transcription when no clients are initialized raises TranscriptionError"""
         from core.api_client import ApiClient
-
+        
         # Mock wave duration
         mock_file = MagicMock()
         mock_file.getnframes.return_value = 44100
@@ -285,19 +364,27 @@ class TestApiClient:
         mock_wave_open.return_value.__enter__.return_value = mock_file
 
         client = ApiClient()
-        # Mocking byte buffer as it expects file-like object or str
         from io import BytesIO
         buf = BytesIO(b"fake wav")
         buf.name = "audio.wav"
 
-        text, duration, provider = client.transcribe(buf)
-        assert text == "Error: No valid API provider configured"
-        assert duration == 0.0
+        # Should raise TranscriptionError now
+        with pytest.raises(TranscriptionError) as excinfo:
+            client.transcribe(buf)
+        
+        assert "No valid API provider configured" in str(excinfo.value)
 
     @patch('core.api_client.OpenAI')
-    def test_transcribe_groq_success(self, mock_openai):
+    @patch('core.api_client.wave.open')
+    def test_transcribe_groq_success(self, mock_wave_open, mock_openai):
         """Test successful transcription with Groq (Primary)"""
         from core.api_client import ApiClient
+
+        # Mock wave
+        mock_file = MagicMock()
+        mock_file.getnframes.return_value = 44100
+        mock_file.getframerate.return_value = 44100
+        mock_wave_open.return_value.__enter__.return_value = mock_file
 
         # We need mock_openai to return mocks when instantiated
         mock_openai_inst = MagicMock()
@@ -319,9 +406,16 @@ class TestApiClient:
         mock_groq_inst.audio.transcriptions.create.assert_called()
 
     @patch('core.api_client.OpenAI')
-    def test_transcribe_failover_to_openai(self, mock_openai):
+    @patch('core.api_client.wave.open')
+    def test_transcribe_failover_to_openai(self, mock_wave_open, mock_openai):
         """Test failover from Groq to OpenAI"""
         from core.api_client import ApiClient
+        
+        # Mock wave
+        mock_file = MagicMock()
+        mock_file.getnframes.return_value = 44100
+        mock_file.getframerate.return_value = 44100
+        mock_wave_open.return_value.__enter__.return_value = mock_file
 
         mock_openai_inst = MagicMock()
         mock_groq_inst = MagicMock()
@@ -347,6 +441,72 @@ class TestApiClient:
         mock_openai_inst.audio.transcriptions.create.assert_called()
 
     @patch('core.api_client.OpenAI')
+    @patch('core.api_client.wave.open')
+    def test_transcribe_openai_auth_error(self, mock_wave_open, mock_openai):
+        """Test OpenAI AuthenticationError raises SFlowAuthError"""
+        from core.api_client import ApiClient
+        from openai import AuthenticationError as OpenAIAuthError
+
+        # Mock wave
+        mock_file = MagicMock()
+        mock_file.getnframes.return_value = 44100
+        mock_file.getframerate.return_value = 44100
+        mock_wave_open.return_value.__enter__.return_value = mock_file
+
+        mock_openai_inst = MagicMock()
+        mock_openai.return_value = mock_openai_inst # Only OpenAI key provided
+        
+        mock_openai_inst.audio.transcriptions.create.side_effect = OpenAIAuthError("Invalid key", response=Mock(), body={})
+
+        client = ApiClient(openai_key="test-openai")
+
+        from io import BytesIO
+        buf = BytesIO(b"fake wav")
+        buf.name = "audio.wav"
+
+        with pytest.raises(AuthenticationError):
+            client.transcribe(buf)
+
+    @patch('core.api_client.OpenAI')
+    @patch('core.api_client.wave.open')
+    def test_transcribe_openai_rate_limit(self, mock_wave_open, mock_openai):
+        """Test OpenAI RateLimitError raises SFlowRateLimitError"""
+        from core.api_client import ApiClient
+        from openai import RateLimitError as OpenAIRateError
+
+        # Mock wave
+        mock_file = MagicMock()
+        mock_file.getnframes.return_value = 44100
+        mock_file.getframerate.return_value = 44100
+        mock_wave_open.return_value.__enter__.return_value = mock_file
+
+        mock_openai_inst = MagicMock()
+        mock_openai.return_value = mock_openai_inst
+
+        # First call fails immediately for simplicity (we Mock _execute_with_retry usually, but here checking wrapper)
+        # But wait, _execute_with_retry retries. 
+        # If we want to test exception wrapping, we need _execute_with_retry to raise the exception.
+        # _execute_with_retry raises exception after MAX_RETRIES.
+        
+        # Let's mock _execute_with_retry internal logic or just force exception
+        # ApiClient uses _execute_with_retry internally.
+        # If we patch Audio.transcriptions.create to raise RateLimitError every time, 
+        # _execute_with_retry will retry N times then raise it.
+        # Then transcribe catches it and wraps it.
+        
+        # Speed up retry delay
+        with patch('core.api_client.RETRY_DELAY', 0.001):
+            mock_openai_inst.audio.transcriptions.create.side_effect = OpenAIRateError("Rate limit", response=Mock(), body={})
+            
+            client = ApiClient(openai_key="test-openai")
+            from io import BytesIO
+            buf = BytesIO(b"fake wav")
+            buf.name = "audio.wav"
+
+            with pytest.raises(RateLimitError):
+                client.transcribe(buf)
+
+    @patch('core.api_client.OpenAI')
     def test_correct_text_groq(self, mock_openai):
         """Test correct_text functionality using Groq"""
         from core.api_client import ApiClient
@@ -363,7 +523,7 @@ class TestApiClient:
         # Only init groq key so only one client created
         client = ApiClient(groq_key="test-groq")
         
-        text, usage = client.correct_text("Original", provider="groq")
+        text, usage = client.correct_text("Original", provider="groq", system_prompt="Fix it")
 
         assert text == "Corrected by Groq"
         assert usage["provider"] == "groq"
@@ -719,6 +879,7 @@ class TestApiClientExtended:
         text, usage = client.correct_text(
             "Текст для перевода",
             provider="openai",
+            system_prompt="Ты — переводчик...",
             is_translation=True
         )
         

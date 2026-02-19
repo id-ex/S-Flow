@@ -185,9 +185,10 @@ del "%~f0"
                     logger.debug(f"Cleaned PATH for updater: removed references to {meipass}")
 
             logger.info("Launching updater.bat and exiting...")
+            # Use specific cmd.exe invocation to avoid shell=True injection risks
             subprocess.Popen(
-                bat_path,
-                shell=True,
+                ["cmd.exe", "/c", bat_path],
+                shell=False,
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 env=env,
             )
