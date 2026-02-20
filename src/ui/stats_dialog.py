@@ -51,6 +51,11 @@ class StatsDialog(QDialog):
         self.price_whisper_input = QLineEdit(str(pricing["whisper_price"]))
         self.price_gpt_input_input = QLineEdit(str(pricing["gpt_input_price"]))
         self.price_gpt_output_input = QLineEdit(str(pricing["gpt_output_price"]))
+        
+        self.price_gpt_input_input.setReadOnly(True)
+        self.price_gpt_output_input.setReadOnly(True)
+        self.price_gpt_input_input.setStyleSheet("color: gray;")
+        self.price_gpt_output_input.setStyleSheet("color: gray;")
 
         pricing_layout.addRow(tr("stats_price_whisper"), self.price_whisper_input)
         pricing_layout.addRow(tr("stats_price_gpt_input"), self.price_gpt_input_input)
@@ -132,8 +137,6 @@ class StatsDialog(QDialog):
         try:
             new_prices = {
                 "price_whisper": float(self.price_whisper_input.text()),
-                "price_gpt_input": float(self.price_gpt_input_input.text()),
-                "price_gpt_output": float(self.price_gpt_output_input.text())
             }
 
             settings = load_settings()

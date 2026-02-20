@@ -299,10 +299,10 @@ class TestAudioRecorder:
 class TestTextProcessor:
     """Test text processor"""
 
-    @patch('core.text_process.QTimer')
+    @patch('core.text_process.threading.Timer')
     @patch('core.text_process.pyperclip')
     @patch('core.text_process.keyboard')
-    def test_paste_text(self, mock_keyboard, mock_pyperclip, mock_qtimer):
+    def test_paste_text(self, mock_keyboard, mock_pyperclip, mock_timer):
         """Test text paste functionality"""
         from core.text_process import TextProcessor
 
@@ -310,7 +310,8 @@ class TestTextProcessor:
         TextProcessor.paste_text(test_text)
 
         mock_pyperclip.copy.assert_called_once_with(test_text)
-        mock_qtimer.singleShot.assert_called_once()
+        mock_timer.assert_called_once()
+        mock_timer.return_value.start.assert_called_once()
 
 
 

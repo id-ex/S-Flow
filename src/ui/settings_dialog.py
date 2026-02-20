@@ -77,6 +77,7 @@ class SettingsDialog(QDialog):
         translation_hotkey: str = "ctrl+alt+t",
         current_startup: bool = False,
         use_llm_correction: bool = True,
+        correction_model: str = "gpt-4o-mini",
     ):
         super().__init__(parent)
         self.new_hotkey = current_hotkey
@@ -87,6 +88,7 @@ class SettingsDialog(QDialog):
         self.new_lang = current_lang
         self.new_startup = current_startup
         self.use_llm_correction = use_llm_correction
+        self.correction_model = correction_model
 
         from core.config import APP_VERSION
 
@@ -148,9 +150,25 @@ class SettingsDialog(QDialog):
         self.openai_input.setPlaceholderText("sk-...")
         self.layout.addWidget(self.openai_input)
 
+        llm_layout = QHBoxLayout()
         self.llm_check = QCheckBox(tr("use_llm_label"))
         self.llm_check.setChecked(use_llm_correction)
-        self.layout.addWidget(self.llm_check)
+        llm_layout.addWidget(self.llm_check)
+
+        self.model_combo = QComboBox()
+        self.populate_models(openai_key, groq_key)
+        
+        idx = self.model_combo.findData(correction_model)
+        if idx >= 0:
+            self.model_combo.setCurrentIndex(idx)
+            
+        self.groq_input.textChanged.connect(self._update_models)
+        self.openai_input.textChanged.connect(self._update_models)
+
+        llm_layout.addWidget(self.model_combo)
+        llm_layout.addStretch()
+        self.layout.addLayout(llm_layout)
+
         self.layout.addSpacing(15) # Gap after API/AI group
 
         # User Context
@@ -201,6 +219,28 @@ class SettingsDialog(QDialog):
 
         self.load_styles()
 
+    def _update_models(self):
+        current_model = self.model_combo.currentData()
+        self.populate_models(self.openai_input.text().strip(), self.groq_input.text().strip())
+        idx = self.model_combo.findData(current_model)
+        if idx >= 0:
+            self.model_combo.setCurrentIndex(idx)
+
+    def populate_models(self, openai_key: str, groq_key: str):
+        self.model_combo.clear()
+        if groq_key:
+            self.model_combo.addItem("Groq: 70B", "llama-3.3-70b-versatile")
+            self.model_combo.addItem("Groq: 3B", "llama-3.2-3b-preview")
+            self.model_combo.addItem("Groq: 8B", "llama3-8b-8192")
+        if openai_key:
+            self.model_combo.addItem("OpenAI: 4o Mini", "gpt-4o-mini")
+            self.model_combo.addItem("OpenAI: 5 Mini", "gpt-5-mini")
+            self.model_combo.addItem("OpenAI: 5 Nano", "gpt-5-nano")
+        if not groq_key and not openai_key:
+            self.model_combo.setEnabled(False)
+        else:
+            self.model_combo.setEnabled(True)
+
     def load_styles(self):
         style_path = get_resource_path(os.path.join("assets", "style.qss"))
         if os.path.exists(style_path):
@@ -217,6 +257,7 @@ class SettingsDialog(QDialog):
         new_user_context = self.context_input.toPlainText().strip()
         new_startup = self.startup_check.isChecked()
         new_use_llm = self.llm_check.isChecked()
+        new_correction_model = self.model_combo.currentData()
 
         if not new_hotkey:
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
@@ -235,6 +276,8 @@ class SettingsDialog(QDialog):
         self.new_user_context = new_user_context
         self.new_startup = new_startup
         self.use_llm_correction = new_use_llm
+        if new_correction_model:
+            self.correction_model = new_correction_model
         self.accept()
 
     def open_logs(self):

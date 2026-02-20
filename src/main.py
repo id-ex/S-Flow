@@ -55,6 +55,7 @@ class ProcessingWorker(QThread):
         user_context: str = "",
         is_translation: bool = False,
         use_llm_correction: bool = True,
+        correction_model: str = "gpt-4o-mini",
     ):
         super().__init__()
         self.api_client = api_client
@@ -67,6 +68,7 @@ class ProcessingWorker(QThread):
         self.user_context = user_context
         self.is_translation = is_translation
         self.use_llm_correction = use_llm_correction
+        self.correction_model = correction_model
 
     def run(self):
         audio_buffer = None
@@ -102,6 +104,7 @@ class ProcessingWorker(QThread):
                     self.context_chars,
                     self.user_context,
                     is_translation=self.is_translation,
+                    correction_model=self.correction_model,
                 )
                 usage_stats.update(gpt_usage)
                 logger.info(f"Corrected Result: {corrected_text}")
@@ -150,6 +153,7 @@ class AppController(QObject):
              self.groq_key = self.settings.get("groq_api_key", "")
         
         self.is_processing = False
+        self.is_shutting_down = False
 
         # Initialize Locale
         lang = self.settings.get("app_language", "ru")
@@ -282,6 +286,7 @@ class AppController(QObject):
             translation_hotkey=self.settings.get("translation_hotkey", "ctrl+alt+t"),
             current_startup=self.settings.get("startup", False),
             use_llm_correction=self.settings.get("use_llm_correction", True),
+            correction_model=self.settings.get("correction_model", "gpt-4o-mini"),
         )
         # Manually set context because we passed None as parent
         dialog.context_input.setPlainText(self.settings.get("user_context", ""))
@@ -366,6 +371,12 @@ class AppController(QObject):
             if dialog.use_llm_correction != self.settings.get("use_llm_correction", True):
                 self.settings["use_llm_correction"] = dialog.use_llm_correction
                 logger.info(f"LLM Correction enabled: {dialog.use_llm_correction}")
+                changes = True
+                
+            # Update Correction Model
+            if hasattr(dialog, "correction_model") and dialog.correction_model != self.settings.get("correction_model"):
+                self.settings["correction_model"] = dialog.correction_model
+                logger.info(f"LLM Correction model updated to: {dialog.correction_model}")
                 changes = True
 
             if changes:
@@ -482,6 +493,7 @@ class AppController(QObject):
         context_chars = self.settings.get("context_window_chars", 3000)
         user_context = self.settings.get("user_context", "")
         use_llm = self.settings.get("use_llm_correction", True)
+        correction_model = self.settings.get("correction_model", "gpt-4o-mini")
 
         # Clean up previous worker if exists
         if hasattr(self, 'worker') and self.worker is not None:
@@ -498,11 +510,15 @@ class AppController(QObject):
             user_context,
             is_translation=is_translation,
             use_llm_correction=use_llm,
+            correction_model=correction_model,
         )
         self.worker.finished.connect(self.on_processing_finished)
         self.worker.start()
 
     def on_processing_finished(self, raw_text, corrected_text, usage_stats):
+        if self.is_shutting_down:
+            return
+
         self.is_processing = False
         self.overlay.hide_overlay()
 
@@ -557,6 +573,13 @@ class AppController(QObject):
 
     def quit_app(self):
         logger.info("Quitting application")
+        self.is_shutting_down = True
+
+        # Stop recording and cancel processing if active
+        if self.audio_recorder.recording or self.is_processing:
+            logger.info("Stopping active operations before quitting...")
+            self.cancel_operation()
+
         self.hotkey_manager.stop()
         self.translation_hotkey_manager.stop()
         self.cancel_hotkey_manager.stop()

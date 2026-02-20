@@ -268,6 +268,7 @@ class ApiClient:
         context_chars: int = 3000,
         user_context: str = "",
         is_translation: bool = False,
+        correction_model: str = "gpt-4o-mini",
     ) -> Tuple[str, dict]:
         """
         Correct text using the specified provider.
@@ -275,19 +276,27 @@ class ApiClient:
         if previous_messages is None:
             previous_messages = []
 
-        # Logic for pairing:
-        # Groq -> llama-3.3-70b-versatile
-        # OpenAI -> gpt-4o-mini
-        
-        if provider == "groq" and self.groq_client:
+        # Logic for pairing based on requested model prefix
+        if correction_model.startswith("llama") and self.groq_client:
+            client = self.groq_client
+            model = correction_model
+            used_provider = "groq"
+        elif correction_model.startswith("gpt") and self.openai_client:
+            client = self.openai_client
+            model = correction_model
+            used_provider = "openai"
+        elif provider == "groq" and self.groq_client:
             client = self.groq_client
             model = "llama-3.3-70b-versatile"
+            used_provider = "groq"
         elif provider == "openai" and self.openai_client:
             client = self.openai_client
             model = "gpt-4o-mini"
+            used_provider = "openai"
         elif self.openai_client: # Fallback to OpenAI if provider invalid/missing but openai avail
             client = self.openai_client
             model = "gpt-4o-mini"
+            used_provider = "openai"
         else:
             return text, {}
 
@@ -334,15 +343,20 @@ class ApiClient:
             ]
 
             def _call_chat():
-                return client.chat.completions.create(
-                    model=model, messages=messages
-                )
+                kwargs = {
+                    "model": model,
+                    "messages": messages
+                }
+                if model.startswith("gpt-5"):
+                    kwargs["reasoning_effort"] = "low"
+                    
+                return client.chat.completions.create(**kwargs)
 
             response = self._execute_with_retry(_call_chat)
             usage = {
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
-                "provider": provider
+                "provider": used_provider
             }
             return response.choices[0].message.content.strip(), usage
             

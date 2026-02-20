@@ -57,10 +57,31 @@ class StatsManager:
     def get_pricing(self) -> Dict[str, float]:
         """Get pricing constants from settings or defaults."""
         settings = load_settings()
+        selected_model = settings.get("correction_model", "gpt-4o-mini")
+        
+        # Hardcoded prices based on model
+        if selected_model == "gpt-4o-mini":
+            input_price = 0.15
+            output_price = 0.60
+        elif selected_model == "gpt-5-mini":
+            input_price = 0.25
+            output_price = 2.00
+        elif selected_model == "gpt-5-nano":
+            input_price = 0.05
+            output_price = 0.40
+        elif selected_model.startswith("llama"):
+            # Groq models are free in this context
+            input_price = 0.0
+            output_price = 0.0
+        else:
+            # Fallback
+            input_price = DEFAULT_GPT_INPUT_PRICE_1M
+            output_price = DEFAULT_GPT_OUTPUT_PRICE_1M
+            
         return {
             "whisper_price": settings.get("price_whisper", DEFAULT_WHISPER_PRICE_PER_MIN),
-            "gpt_input_price": settings.get("price_gpt_input", DEFAULT_GPT_INPUT_PRICE_1M),
-            "gpt_output_price": settings.get("price_gpt_output", DEFAULT_GPT_OUTPUT_PRICE_1M)
+            "gpt_input_price": input_price,
+            "gpt_output_price": output_price
         }
 
     def calculate_costs(self) -> Dict[str, float]:
