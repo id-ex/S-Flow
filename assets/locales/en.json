@@ -12,6 +12,8 @@
     "error_connection": "Error: No Connection",
     "error_rate_limit": "Error: Rate Limit Exceeded",
     "error_auth": "Error: Invalid API Key",
+    "correction_model_label": "Smart correction model:",
+    "model_none": "None",
     "error_no_speech": "No speech detected",
     "use_llm_label": "Smart Correction",
     "model_label": "Model:",

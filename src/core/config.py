@@ -25,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.10.1"
+APP_VERSION = "1.10.2"
 
 SYSTEM_PROMPT = (
     "You are an advanced ASR (Automatic Speech Recognition) Post-Processing Engine. "

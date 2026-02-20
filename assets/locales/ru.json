@@ -11,6 +11,8 @@
     "error_rate_limit": "Ошибка: Превышен лимит запросов",
     "error_auth": "Ошибка: Неверный API Key",
     "error_no_speech": "Речь не обнаружена",
+    "correction_model_label": "Модель для умной коррекции:",
+    "model_none": "Нет",
     "use_llm_label": "Умная коррекция",
     "model_label": "Модель:",
     "settings_title": "Настройки S-Flow",

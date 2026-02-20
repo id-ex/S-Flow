@@ -151,14 +151,18 @@ class SettingsDialog(QDialog):
         self.layout.addWidget(self.openai_input)
 
         llm_layout = QHBoxLayout()
-        self.llm_check = QCheckBox(tr("use_llm_label"))
-        self.llm_check.setChecked(use_llm_correction)
-        llm_layout.addWidget(self.llm_check)
+        llm_label = QLabel(tr("correction_model_label"))
+        llm_layout.addWidget(llm_label)
 
         self.model_combo = QComboBox()
         self.populate_models(openai_key, groq_key)
         
-        idx = self.model_combo.findData(correction_model)
+        
+        if not use_llm_correction:
+            idx = self.model_combo.findData("none")
+        else:
+            idx = self.model_combo.findData(correction_model)
+            
         if idx >= 0:
             self.model_combo.setCurrentIndex(idx)
             
@@ -228,14 +232,17 @@ class SettingsDialog(QDialog):
 
     def populate_models(self, openai_key: str, groq_key: str):
         self.model_combo.clear()
+        
+        self.model_combo.addItem(tr("model_none"), "none")
+        
         if groq_key:
-            self.model_combo.addItem("Groq: 70B", "llama-3.3-70b-versatile")
-            self.model_combo.addItem("Groq: 3B", "llama-3.2-3b-preview")
-            self.model_combo.addItem("Groq: 8B", "llama3-8b-8192")
+            self.model_combo.addItem("Llama 3.3 70B (Free)", "llama-3.3-70b-versatile")
+            self.model_combo.addItem("Llama 3.2 3B (Free)", "llama-3.2-3b-preview")
+            self.model_combo.addItem("Llama 3 8B (Free)", "llama3-8b-8192")
         if openai_key:
-            self.model_combo.addItem("OpenAI: 4o Mini", "gpt-4o-mini")
-            self.model_combo.addItem("OpenAI: 5 Mini", "gpt-5-mini")
-            self.model_combo.addItem("OpenAI: 5 Nano", "gpt-5-nano")
+            self.model_combo.addItem("GPT-4o Mini", "gpt-4o-mini")
+            self.model_combo.addItem("GPT-5 Mini", "gpt-5-mini")
+            self.model_combo.addItem("GPT-5 Nano", "gpt-5-nano")
         if not groq_key and not openai_key:
             self.model_combo.setEnabled(False)
         else:
@@ -256,8 +263,9 @@ class SettingsDialog(QDialog):
         new_lang = self.lang_combo.currentData()
         new_user_context = self.context_input.toPlainText().strip()
         new_startup = self.startup_check.isChecked()
-        new_use_llm = self.llm_check.isChecked()
+        
         new_correction_model = self.model_combo.currentData()
+        new_use_llm = (new_correction_model != "none")
 
         if not new_hotkey:
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
@@ -276,7 +284,7 @@ class SettingsDialog(QDialog):
         self.new_user_context = new_user_context
         self.new_startup = new_startup
         self.use_llm_correction = new_use_llm
-        if new_correction_model:
+        if new_use_llm and new_correction_model:
             self.correction_model = new_correction_model
         self.accept()
 
