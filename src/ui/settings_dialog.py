@@ -11,11 +11,43 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QCheckBox,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QThread
 from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
 import os
 from core.locale_manager import tr
 from core.config import get_resource_path, LOG_PATH
+
+
+class MagicContextWorker(QThread):
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, openai_key: str, groq_key: str):
+        super().__init__()
+        self.openai_key = openai_key
+        self.groq_key = groq_key
+
+    def run(self):
+        try:
+            from core.stats_manager import StatsManager
+            from core.api_client import ApiClient
+
+            stats = StatsManager()
+            history = stats.get_history()
+
+            if not history:
+                 self.error.emit(tr("error_no_history") if tr("error_no_history") != "error_no_history" else "Нет сохраненной истории для анализа.")
+                 return
+
+            client = ApiClient(openai_key=self.openai_key, groq_key=self.groq_key)
+            result = client.generate_magic_context(history, self.openai_key, self.groq_key)
+
+            if result:
+                 self.finished.emit(result)
+            else:
+                 self.error.emit(tr("error_generation_failed") if tr("error_generation_failed") != "error_generation_failed" else "Не удалось сгенерировать контекст.")
+        except Exception as e:
+            self.error.emit(str(e))
 
 
 class HotkeyEdit(QLineEdit):
@@ -176,7 +208,19 @@ class SettingsDialog(QDialog):
         self.layout.addSpacing(15) # Gap after API/AI group
 
         # User Context
-        self.layout.addWidget(QLabel(tr("context_label")))
+        context_label_layout = QHBoxLayout()
+        context_label_layout.addWidget(QLabel(tr("context_label")))
+        context_label_layout.addStretch()
+        
+        self.magic_btn = QPushButton("Магия")
+        self.magic_btn.setFixedSize(50, 24)
+        self.magic_btn.setToolTip("Авто-генерация контекста на основе истории из логов")
+        self.magic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.magic_btn.clicked.connect(self.generate_magic_context)
+        context_label_layout.addWidget(self.magic_btn)
+        
+        self.layout.addLayout(context_label_layout)
+        
         self.context_input = QPlainTextEdit("")
         self.context_input.setPlaceholderText(tr("context_placeholder"))
         self.context_input.setFixedHeight(70) # Slightly smaller for better fit
@@ -287,6 +331,46 @@ class SettingsDialog(QDialog):
         if new_use_llm and new_correction_model:
             self.correction_model = new_correction_model
         self.accept()
+
+    def generate_magic_context(self):
+        """Asynchronously triggers context generation via LLM using recent history."""
+        openai_key = self.openai_input.text().strip()
+        groq_key = self.groq_input.text().strip()
+        
+        if not openai_key and not groq_key:
+            QMessageBox.warning(self, tr("error_title"), "Please enter at least one API key (Groq or OpenAI) to use Magic Context.")
+            return
+
+        self.magic_btn.setEnabled(False)
+        self.magic_btn.setText("...")
+        
+        self.magic_worker = MagicContextWorker(openai_key=openai_key, groq_key=groq_key)
+        self.magic_worker.finished.connect(self._on_magic_success)
+        self.magic_worker.error.connect(self._on_magic_error)
+        self.magic_worker.start()
+
+    def _on_magic_success(self, context_str: str):
+        self.magic_btn.setEnabled(True)
+        self.magic_btn.setText("Магия")
+        
+        current_text = self.context_input.toPlainText().strip()
+        if current_text:
+            # Append uniquely
+            existing_items = [item.strip() for item in current_text.split(",") if item.strip()]
+            new_items = [item.strip() for item in context_str.split(",") if item.strip()]
+            combined = existing_items
+            for item in new_items:
+                if item not in combined:
+                    combined.append(item)
+            self.context_input.setPlainText(", ".join(combined))
+        else:
+            self.context_input.setPlainText(context_str)
+
+    def _on_magic_error(self, err_msg: str):
+        self.magic_btn.setEnabled(True)
+        self.magic_btn.setText("Магия")
+        QMessageBox.warning(self, tr("error_title"), err_msg)
+
 
     def open_logs(self):
         if os.path.exists(LOG_PATH):

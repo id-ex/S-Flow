@@ -364,3 +364,61 @@ class ApiClient:
             logger.exception(f"Correction error ({provider}): {e}")
             return text, {}
 
+    def generate_magic_context(self, history: list, openai_key: str, groq_key: str) -> str:
+        """
+        Generates a comma-separated list of context keywords from recent execution history.
+        Prioritizes Groq over OpenAI for free generation.
+        """
+        if not history:
+            return ""
+
+        # Determine best available client
+        client = None
+        model = None
+        
+        if groq_key and self.groq_client:
+            client = self.groq_client
+            model = "llama-3.3-70b-versatile"
+        elif openai_key and self.openai_client:
+            client = self.openai_client
+            model = "gpt-4o-mini"
+            
+        if not client or not model:
+            logger.warning("Cannot generate magic context: no API keys configured.")
+            return ""
+            
+        logger.info(f"Generating Magic Context using {model}")
+        
+        history_text = "\n".join([f"- {msg.get('text', '')}" for msg in history if isinstance(msg, dict) and msg.get('text')])
+        if not history_text:
+            return ""
+            
+        system_prompt = (
+            "You are an AI assistant that analyzes a user's recent dictated text blocks. "
+            "Extract the main technical terms, topics, names, and subjects to form a contextual glossary. "
+            "Return ONLY a comma-separated list of these terms. Maximum 15 terms. Do not add conversational text or formatting. "
+            "Keep the terms in the original language if possible. If the history is too short or generic, return an empty string."
+        )
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Recent dictated history:\n{history_text}"},
+        ]
+
+        def _call_magic():
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0.3
+            }
+            return client.chat.completions.create(**kwargs)
+
+        try:
+            response = self._execute_with_retry(_call_magic)
+            generated_context = response.choices[0].message.content.strip()
+            return generated_context
+        except Exception as e:
+            logger.error(f"Failed to generate magic context: {e}")
+            return ""
+
+

@@ -164,6 +164,8 @@ class AppController(QObject):
 
         # API & Logic
         self.api_client = self._create_api_client()
+        # We no longer need an in-memory message_history list
+        # self.message_history = []  <- Removed! Using stats_manager instead.
         self.audio_recorder = AudioRecorder(
             on_error=lambda msg: self.overlay.show_message(
                 f"{tr('error_title')}: {msg}", duration=4000
@@ -207,7 +209,6 @@ class AppController(QObject):
         )
         self.cancel_hotkey_manager.start()
 
-        self.history = []
         self.current_mode = "correction"  # or "translation"
 
         # System Tray
@@ -488,12 +489,15 @@ class AppController(QObject):
         self.is_processing = True
         is_translation = self.current_mode == "translation"
 
-        prompt = TRANSLATION_PROMPT if is_translation else SYSTEM_PROMPT
+        system_prompt = TRANSLATION_PROMPT if is_translation else SYSTEM_PROMPT
 
         context_chars = self.settings.get("context_window_chars", 3000)
         user_context = self.settings.get("user_context", "")
         use_llm = self.settings.get("use_llm_correction", True)
         correction_model = self.settings.get("correction_model", "gpt-4o-mini")
+
+        # Always fetch fresh history from StatsManager
+        current_history = self.stats_manager.get_history()
 
         # Clean up previous worker if exists
         if hasattr(self, 'worker') and self.worker is not None:
@@ -501,13 +505,13 @@ class AppController(QObject):
 
         self.worker = ProcessingWorker(
             self.api_client,
-            audio_chunks,
-            self.audio_recorder.sample_rate,
-            self.audio_recorder.channels,
-            self.history,
-            prompt,
-            context_chars,
-            user_context,
+            audio_frames=audio_chunks,
+            sample_rate=self.audio_recorder.sample_rate,
+            channels=self.audio_recorder.channels,
+            history=current_history,
+            system_prompt=system_prompt,
+            context_chars=context_chars,
+            user_context=user_context,
             is_translation=is_translation,
             use_llm_correction=use_llm,
             correction_model=correction_model,
@@ -540,8 +544,7 @@ class AppController(QObject):
         if raw_text and not corrected_text.startswith("Error"):
             self.overlay.show_message(tr("done"), duration=1000)
 
-            # History
-            self.history.append({"text": corrected_text, "is_bot": True})
+            # History is now parsed from app.log directly in StatsManager
 
             TextProcessor.paste_text(corrected_text)
             logger.info("Processing finished successfully")

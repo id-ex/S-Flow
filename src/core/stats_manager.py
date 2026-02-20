@@ -36,6 +36,7 @@ class StatsManager:
             "total_seconds": 0.0,
             "total_prompt_tokens": 0,
             "total_completion_tokens": 0,
+            "total_completion_tokens": 0,
             "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -53,6 +54,40 @@ class StatsManager:
         self.stats["total_prompt_tokens"] += prompt_tokens
         self.stats["total_completion_tokens"] += completion_tokens
         self.save_stats()
+
+    def get_history(self, limit=50) -> list:
+        """Parse the last N corrected results from app.log"""
+        history = []
+        from .config import LOG_PATH
+        import os
+        import re
+        
+        if not os.path.exists(LOG_PATH):
+            return history
+            
+        try:
+            with open(LOG_PATH, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                
+            # Parse from bottom up
+            for line in reversed(lines):
+                if "Corrected Result: " in line or "Transcription result (" in line:
+                    if "Corrected Result: " in line:
+                        text = line.split("Corrected Result: ", 1)[1].strip()
+                    else:
+                        text = line.split("): ", 1)[1].strip()
+                        
+                    # Remove ANSI escape codes if logging uses colors
+                    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+                    
+                    if len(text) > 2:
+                        history.insert(0, {"text": text, "role": "user"})
+                        if len(history) >= limit:
+                            break
+        except Exception as e:
+            logger.error(f"Error parsing history from log: {e}")
+            
+        return history
 
     def get_pricing(self) -> Dict[str, float]:
         """Get pricing constants from settings or defaults."""
@@ -103,6 +138,7 @@ class StatsManager:
         """Reset all statistics."""
         self.stats = {
             "total_seconds": 0.0,
+            "total_prompt_tokens": 0,
             "total_prompt_tokens": 0,
             "total_completion_tokens": 0,
             "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")

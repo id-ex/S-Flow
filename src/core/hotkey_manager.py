@@ -40,7 +40,12 @@ class HotkeyManager(QObject):
 
     def stop(self) -> None:
         """Stop listening for hotkey combination."""
-        keyboard.remove_hotkey(self.combination)
+        try:
+            keyboard.remove_hotkey(self.combination)
+        except KeyError:
+            logger.debug(f"Hotkey {self.combination} was not registered or already removed.")
+        except Exception as e:
+            logger.warning(f"Error removing hotkey {self.combination}: {e}")
 
     def on_trigger(self) -> None:
         """Handle hotkey trigger event."""
