@@ -3,6 +3,7 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, Any
+import re
 
 from .config import get_app_dir, load_settings, save_settings_file
 
@@ -36,7 +37,6 @@ class StatsManager:
             "total_seconds": 0.0,
             "total_prompt_tokens": 0,
             "total_completion_tokens": 0,
-            "total_completion_tokens": 0,
             "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -56,11 +56,9 @@ class StatsManager:
         self.save_stats()
 
     def get_history(self, limit=50) -> list:
-        """Parse the last N corrected results from app.log"""
+        """Parse the last N corrected results from app.log."""
         history = []
         from .config import LOG_PATH
-        import os
-        import re
         
         if not os.path.exists(LOG_PATH):
             return history
@@ -71,12 +69,9 @@ class StatsManager:
                 
             # Parse from bottom up
             for line in reversed(lines):
-                if "Corrected Result: " in line or "Transcription result (" in line:
-                    if "Corrected Result: " in line:
-                        text = line.split("Corrected Result: ", 1)[1].strip()
-                    else:
-                        text = line.split("): ", 1)[1].strip()
-                        
+                if "Corrected Result: " in line:
+                    text = line.split("Corrected Result: ", 1)[1].strip()
+
                     # Remove ANSI escape codes if logging uses colors
                     text = re.sub(r'\x1b\[[0-9;]*m', '', text)
                     
@@ -138,7 +133,6 @@ class StatsManager:
         """Reset all statistics."""
         self.stats = {
             "total_seconds": 0.0,
-            "total_prompt_tokens": 0,
             "total_prompt_tokens": 0,
             "total_completion_tokens": 0,
             "last_reset": datetime.now().strftime("%Y-%m-%d %H:%M:%S")

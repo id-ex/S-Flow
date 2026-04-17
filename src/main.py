@@ -1,18 +1,15 @@
 import sys
 import os
-import io
-import threading
-import json
 import logging
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import pyqtSignal, QObject, QThread, QTimer, Qt
-from dotenv import load_dotenv, set_key, dotenv_values
+from dotenv import load_dotenv, set_key
 
 from ui.overlay import StatusOverlay
 from ui.settings_dialog import SettingsDialog
 from core.audio_recorder import AudioRecorder
-from core.hotkey_manager import HotkeyManager
+from core.hotkey_manager import HotkeyManager, repair_hotkey_settings
 from core.api_client import ApiClient
 from core.text_process import TextProcessor
 from core.stats_manager import StatsManager
@@ -107,6 +104,14 @@ class ProcessingWorker(QThread):
                     correction_model=self.correction_model,
                 )
                 usage_stats.update(gpt_usage)
+                if gpt_usage.get("llm_failed"):
+                    logger.warning("LLM post-processing failed.")
+                    if self.is_translation:
+                        self.finished.emit("", tr("error_translation_failed"), usage_stats)
+                        return
+
+                    corrected_text = raw_text
+                    usage_stats["used_raw_fallback"] = True
                 logger.info(f"Corrected Result: {corrected_text}")
             else:
                 logger.info("LLM correction disabled, using raw text.")
@@ -138,10 +143,10 @@ class ProcessingWorker(QThread):
 
 
 class AppController(QObject):
-    def __init__(self, app):
+    def __init__(self, app, settings=None):
         super().__init__()
         self.app = app
-        self.settings = load_settings()
+        self.settings = settings if settings is not None else load_settings()
         
         # Keys from Environment or Settings (Migration fallback)
         self.openai_key = os.getenv("OPENAI_API_KEY")
@@ -154,6 +159,7 @@ class AppController(QObject):
         
         self.is_processing = False
         self.is_shutting_down = False
+        self.hotkeys_suspended = False
 
         # Initialize Locale
         lang = self.settings.get("app_language", "ru")
@@ -179,7 +185,6 @@ class AppController(QObject):
         self.hotkey_manager.triggered.connect(
             self.toggle_standard_recording, Qt.ConnectionType.QueuedConnection
         )
-        self.hotkey_manager.start()
 
         # Translation Hotkey
         self.translation_hotkey_manager = HotkeyManager(
@@ -188,7 +193,6 @@ class AppController(QObject):
         self.translation_hotkey_manager.triggered.connect(
             self.toggle_translation_recording, Qt.ConnectionType.QueuedConnection
         )
-        self.translation_hotkey_manager.start()
 
         self.available_update_url = None
         self.available_update_version = None
@@ -207,7 +211,17 @@ class AppController(QObject):
         self.cancel_hotkey_manager.triggered.connect(
             self.cancel_operation, Qt.ConnectionType.QueuedConnection
         )
-        self.cancel_hotkey_manager.start()
+        self.hotkey_managers = [
+            self.hotkey_manager,
+            self.translation_hotkey_manager,
+            self.cancel_hotkey_manager,
+        ]
+        self._start_hotkeys()
+
+        self.hotkey_health_timer = QTimer(self)
+        self.hotkey_health_timer.setInterval(30000)
+        self.hotkey_health_timer.timeout.connect(self._check_hotkey_health)
+        self.hotkey_health_timer.start()
 
         self.current_mode = "correction"  # or "translation"
 
@@ -237,6 +251,25 @@ class AppController(QObject):
             groq_key=self.groq_key,
             on_notify=on_api_notify
         )
+
+    def _start_hotkeys(self) -> None:
+        for manager in self.hotkey_managers:
+            manager.ensure_registered()
+
+    def _stop_hotkeys(self) -> None:
+        for manager in self.hotkey_managers:
+            manager.stop()
+
+    def _check_hotkey_health(self) -> None:
+        if self.hotkeys_suspended or self.is_shutting_down:
+            return
+
+        if self.audio_recorder.recording or self.is_processing:
+            return
+
+        logger.debug("Checking hotkey registrations")
+        for manager in self.hotkey_managers:
+            manager.ensure_registered()
 
     def update_tray_menu(self):
         from core.config import APP_VERSION
@@ -270,125 +303,124 @@ class AppController(QObject):
 
     def open_settings(self):
         # Stop all hotkeys to prevent triggering while typing in settings
-        self.hotkey_manager.stop()
-        self.translation_hotkey_manager.stop()
-        self.cancel_hotkey_manager.stop()
+        self.hotkeys_suspended = True
+        self._stop_hotkeys()
         logger.info("Hotkeys stopped for settings dialog")
 
         current_lang = get_current_language()
 
-        dialog = SettingsDialog(
-            None,
-            current_hotkey=self.settings.get("hotkey", "ctrl+alt+s"),
-            openai_key=self.openai_key,
-            groq_key=self.groq_key,
-            current_lang=current_lang,
-            cancel_hotkey=self.settings.get("cancel_hotkey", "ctrl+alt+x"),
-            translation_hotkey=self.settings.get("translation_hotkey", "ctrl+alt+t"),
-            current_startup=self.settings.get("startup", False),
-            use_llm_correction=self.settings.get("use_llm_correction", True),
-            correction_model=self.settings.get("correction_model", "gpt-4o-mini"),
-        )
-        # Manually set context because we passed None as parent
-        dialog.context_input.setPlainText(self.settings.get("user_context", ""))
+        try:
+            dialog = SettingsDialog(
+                None,
+                current_hotkey=self.settings.get("hotkey", "ctrl+alt+s"),
+                openai_key=self.openai_key,
+                groq_key=self.groq_key,
+                current_lang=current_lang,
+                cancel_hotkey=self.settings.get("cancel_hotkey", "ctrl+alt+x"),
+                translation_hotkey=self.settings.get("translation_hotkey", "ctrl+alt+t"),
+                current_startup=self.settings.get("startup", False),
+                use_llm_correction=self.settings.get("use_llm_correction", True),
+                correction_model=self.settings.get("correction_model", "gpt-4o-mini"),
+            )
+            # Manually set context because we passed None as parent
+            dialog.context_input.setPlainText(self.settings.get("user_context", ""))
 
-        result = dialog.exec()
-        if result == 1:  # Accepted
-            changes = False
+            result = dialog.exec()
+            if result == 1:  # Accepted
+                changes = False
 
-            # Update Hotkey
-            if dialog.new_hotkey != self.settings.get("hotkey"):
-                self.settings["hotkey"] = dialog.new_hotkey
-                self.hotkey_manager.combination = (
-                    dialog.new_hotkey
-                )  # Update combination
-                logger.info(f"Hotkey updated to {dialog.new_hotkey}")
-                changes = True
+                # Update Hotkey
+                if dialog.new_hotkey != self.settings.get("hotkey"):
+                    self.settings["hotkey"] = dialog.new_hotkey
+                    self.hotkey_manager.combination = (
+                        dialog.new_hotkey
+                    )  # Update combination
+                    logger.info(f"Hotkey updated to {dialog.new_hotkey}")
+                    changes = True
 
-            # Update Cancel Hotkey
-            if dialog.new_cancel_hotkey != self.settings.get("cancel_hotkey", ""):
-                self.settings["cancel_hotkey"] = dialog.new_cancel_hotkey
-                self.cancel_hotkey_manager.combination = (
-                    dialog.new_cancel_hotkey
-                )  # Update combination
-                logger.info(f"Cancel Hotkey updated to {dialog.new_cancel_hotkey}")
-                changes = True
+                # Update Cancel Hotkey
+                if dialog.new_cancel_hotkey != self.settings.get("cancel_hotkey", ""):
+                    self.settings["cancel_hotkey"] = dialog.new_cancel_hotkey
+                    self.cancel_hotkey_manager.combination = (
+                        dialog.new_cancel_hotkey
+                    )  # Update combination
+                    logger.info(f"Cancel Hotkey updated to {dialog.new_cancel_hotkey}")
+                    changes = True
 
-            # Update API Keys (to .env)
-            env_path = os.path.join(get_app_dir(), ".env")
-            if not os.path.exists(env_path):
-                with open(env_path, "w") as f:
-                    f.write("")
+                # Update API Keys (to .env)
+                env_path = os.path.join(get_app_dir(), ".env")
+                if not os.path.exists(env_path):
+                    with open(env_path, "w") as f:
+                        f.write("")
 
-            keys_changed = False
-            if dialog.new_openai_key != self.openai_key:
-                set_key(env_path, "OPENAI_API_KEY", dialog.new_openai_key)
-                self.openai_key = dialog.new_openai_key
-                logger.info("OpenAI API Key updated in .env")
-                keys_changed = True
-                
-            if dialog.new_groq_key != self.groq_key:
-                set_key(env_path, "GROQ_API_KEY", dialog.new_groq_key)
-                self.groq_key = dialog.new_groq_key
-                logger.info("Groq API Key updated in .env")
-                keys_changed = True
-            
-            if keys_changed:
-                self.api_client = self._create_api_client()
+                keys_changed = False
+                if dialog.new_openai_key != self.openai_key:
+                    set_key(env_path, "OPENAI_API_KEY", dialog.new_openai_key)
+                    self.openai_key = dialog.new_openai_key
+                    logger.info("OpenAI API Key updated in .env")
+                    keys_changed = True
 
-            # Update Translation Hotkey
-            if dialog.new_translation_hotkey != self.settings.get("translation_hotkey"):
-                self.settings["translation_hotkey"] = dialog.new_translation_hotkey
-                self.translation_hotkey_manager.combination = (
-                    dialog.new_translation_hotkey
-                )  # Update combination
-                logger.info(
-                    f"Translation Hotkey updated to {dialog.new_translation_hotkey}"
-                )
-                changes = True
+                if dialog.new_groq_key != self.groq_key:
+                    set_key(env_path, "GROQ_API_KEY", dialog.new_groq_key)
+                    self.groq_key = dialog.new_groq_key
+                    logger.info("Groq API Key updated in .env")
+                    keys_changed = True
 
-            # Update Language
-            if dialog.new_lang != current_lang:
-                self.settings["app_language"] = dialog.new_lang
-                set_language(dialog.new_lang)
-                self.update_tray_menu()  # Refresh tray menu
-                logger.info(f"Language updated to {dialog.new_lang}")
-                changes = True
+                if keys_changed:
+                    self.api_client = self._create_api_client()
 
-            # Update User Context
-            if dialog.new_user_context != self.settings.get("user_context", ""):
-                self.settings["user_context"] = dialog.new_user_context
-                logger.info("User context updated")
-                changes = True
+                # Update Translation Hotkey
+                if dialog.new_translation_hotkey != self.settings.get("translation_hotkey"):
+                    self.settings["translation_hotkey"] = dialog.new_translation_hotkey
+                    self.translation_hotkey_manager.combination = (
+                        dialog.new_translation_hotkey
+                    )  # Update combination
+                    logger.info(
+                        f"Translation Hotkey updated to {dialog.new_translation_hotkey}"
+                    )
+                    changes = True
 
-            # Update Startup
-            if dialog.new_startup != self.settings.get("startup", False):
-                self.settings["startup"] = dialog.new_startup
-                set_autostart(dialog.new_startup)
-                logger.info(f"Startup setting updated to {dialog.new_startup}")
-                changes = True
+                # Update Language
+                if dialog.new_lang != current_lang:
+                    self.settings["app_language"] = dialog.new_lang
+                    set_language(dialog.new_lang)
+                    self.update_tray_menu()  # Refresh tray menu
+                    logger.info(f"Language updated to {dialog.new_lang}")
+                    changes = True
 
-            # Update LLM Correction
-            if dialog.use_llm_correction != self.settings.get("use_llm_correction", True):
-                self.settings["use_llm_correction"] = dialog.use_llm_correction
-                logger.info(f"LLM Correction enabled: {dialog.use_llm_correction}")
-                changes = True
-                
-            # Update Correction Model
-            if hasattr(dialog, "correction_model") and dialog.correction_model != self.settings.get("correction_model"):
-                self.settings["correction_model"] = dialog.correction_model
-                logger.info(f"LLM Correction model updated to: {dialog.correction_model}")
-                changes = True
+                # Update User Context
+                if dialog.new_user_context != self.settings.get("user_context", ""):
+                    self.settings["user_context"] = dialog.new_user_context
+                    logger.info("User context updated")
+                    changes = True
 
-            if changes:
-                save_settings_file(self.settings)
-                self.overlay.show_message(tr("settings_saved"), duration=2000)
+                # Update Startup
+                if dialog.new_startup != self.settings.get("startup", False):
+                    self.settings["startup"] = dialog.new_startup
+                    set_autostart(dialog.new_startup)
+                    logger.info(f"Startup setting updated to {dialog.new_startup}")
+                    changes = True
 
-        # Restart hotkeys after dialog closes (regardless of Save/Cancel)
-        self.hotkey_manager.start()
-        self.translation_hotkey_manager.start()
-        self.cancel_hotkey_manager.start()
-        logger.info("Hotkeys restarted after settings dialog")
+                # Update LLM Correction
+                if dialog.use_llm_correction != self.settings.get("use_llm_correction", True):
+                    self.settings["use_llm_correction"] = dialog.use_llm_correction
+                    logger.info(f"LLM Correction enabled: {dialog.use_llm_correction}")
+                    changes = True
+
+                # Update Correction Model
+                if hasattr(dialog, "correction_model") and dialog.correction_model != self.settings.get("correction_model"):
+                    self.settings["correction_model"] = dialog.correction_model
+                    logger.info(f"LLM Correction model updated to: {dialog.correction_model}")
+                    changes = True
+
+                if changes:
+                    save_settings_file(self.settings)
+                    self.overlay.show_message(tr("settings_saved"), duration=2000)
+        finally:
+            # Restart hotkeys after dialog closes or if settings flow raises.
+            self.hotkeys_suspended = False
+            self._start_hotkeys()
+            logger.info("Hotkeys restarted after settings dialog")
 
 
     def open_statistics(self):
@@ -488,8 +520,9 @@ class AppController(QObject):
         """Process raw audio chunks in a background worker thread."""
         self.is_processing = True
         is_translation = self.current_mode == "translation"
-
-        system_prompt = TRANSLATION_PROMPT if is_translation else SYSTEM_PROMPT
+        prompt_key = "translation_prompt" if is_translation else "system_prompt"
+        fallback_prompt = TRANSLATION_PROMPT if is_translation else SYSTEM_PROMPT
+        system_prompt = self.settings.get(prompt_key, fallback_prompt) or fallback_prompt
 
         context_chars = self.settings.get("context_window_chars", 3000)
         user_context = self.settings.get("user_context", "")
@@ -542,7 +575,8 @@ class AppController(QObject):
                 )
 
         if raw_text and not corrected_text.startswith("Error"):
-            self.overlay.show_message(tr("done"), duration=1000)
+            overlay_key = "warning_raw_text_used" if usage_stats.get("used_raw_fallback") else "done"
+            self.overlay.show_message(tr(overlay_key), duration=1500)
 
             # History is now parsed from app.log directly in StatsManager
 
@@ -583,9 +617,8 @@ class AppController(QObject):
             logger.info("Stopping active operations before quitting...")
             self.cancel_operation()
 
-        self.hotkey_manager.stop()
-        self.translation_hotkey_manager.stop()
-        self.cancel_hotkey_manager.stop()
+        self.hotkey_health_timer.stop()
+        self._stop_hotkeys()
         self.app.quit()
 
 
@@ -604,6 +637,10 @@ def main():
             return
 
         load_dotenv(os.path.join(get_app_dir(), ".env"))
+        settings = load_settings()
+        if repair_hotkey_settings(settings):
+            save_settings_file(settings)
+            logger.warning("Hotkey settings were repaired before application startup")
 
         # Set AppUserModelID for Windows Taskbar Icon
         myappid = "sflow.recognition.app.1.0"  # arbitrary string
@@ -613,7 +650,7 @@ def main():
         app.setQuitOnLastWindowClosed(False)
         app.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
 
-        controller = AppController(app)
+        controller = AppController(app, settings=settings)
 
         sys.exit(app.exec())
     finally:

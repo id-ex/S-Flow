@@ -30,3 +30,24 @@ QPushButton {
 QPushButton:hover { 
     background-color: #006abc; 
 }
+
+QToolButton#magicContextButton {
+    background-color: #3d3d3d;
+    color: #f5d76e;
+    border: 1px solid #666;
+    border-radius: 5px;
+    padding: 0;
+    font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Segoe UI';
+    font-size: 15px;
+}
+
+QToolButton#magicContextButton:hover {
+    background-color: #474747;
+    border-color: #0078D4;
+}
+
+QToolButton#magicContextButton:disabled {
+    color: #bdbdbd;
+    background-color: #353535;
+    border-color: #555;
+}

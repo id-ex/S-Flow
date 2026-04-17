@@ -29,6 +29,14 @@ from .exceptions import (
 logger = logging.getLogger(__name__)
 
 
+class NamedBytesIO(io.BytesIO):
+    """BytesIO wrapper with a stable file name for multipart uploads."""
+
+    def __init__(self, initial_bytes: bytes = b"", name: str = "audio.wav") -> None:
+        super().__init__(initial_bytes)
+        self.name = name
+
+
 class ApiClient:
     """
     Client for OpenAI API operations (transcription and text correction).
@@ -102,6 +110,7 @@ class ApiClient:
             If transcription fails, returns (Error string, 0.0, "")
         """
         # Calculate duration
+        language = self.config.get("transcription_language", "ru")
         duration = 0.0
         try:
             # Handle both path and file-like object
@@ -132,10 +141,12 @@ class ApiClient:
                 return open(audio_file, "rb")
             else:
                 audio_file.seek(0)
-                # Important: API client needs a 'name' attribute to determine content type
-                if not hasattr(audio_file, "name"):
-                    audio_file.name = "audio.wav" 
-                return audio_file # BytesIO is already file-like
+                if hasattr(audio_file, "name"):
+                    return audio_file
+
+                named_buffer = NamedBytesIO(audio_file.getvalue())
+                named_buffer.seek(0)
+                return named_buffer
 
         # --- Attempt 1: Groq ---
         if self.groq_client:
@@ -150,10 +161,10 @@ class ApiClient:
                         return self.groq_client.audio.transcriptions.create(
                             model=model_name,
                             file=f_obj,
-                            language="ru" # Groq whisper supports language param
+                            language=language,
                         )
                     finally:
-                        if isinstance(audio_file, str):
+                        if isinstance(audio_file, str) or isinstance(f_obj, NamedBytesIO):
                             f_obj.close()
 
                 transcription = self._execute_with_retry(_call_groq)
@@ -183,10 +194,10 @@ class ApiClient:
                         return self.openai_client.audio.transcriptions.create(
                             model=model_name,
                             file=f_obj,
-                            language="ru"
+                            language=language,
                         )
                     finally:
-                        if isinstance(audio_file, str):
+                        if isinstance(audio_file, str) or isinstance(f_obj, NamedBytesIO):
                             f_obj.close()
 
                 transcription = self._execute_with_retry(_call_openai)
@@ -253,9 +264,6 @@ class ApiClient:
                 
         if len(text_lower.strip()) < 2:
             return "", duration, provider
-                
-        if len(text_lower.strip()) < 2:
-            return "", duration, provider
 
         return text, duration, provider
 
@@ -298,7 +306,7 @@ class ApiClient:
             model = "gpt-4o-mini"
             used_provider = "openai"
         else:
-            return text, {}
+            return text, {"llm_failed": True}
 
         logger.info(f"LLM Correction Model: {model}")
 
@@ -362,7 +370,7 @@ class ApiClient:
             
         except Exception as e:
             logger.exception(f"Correction error ({provider}): {e}")
-            return text, {}
+            return text, {"provider": used_provider, "llm_failed": True}
 
     def generate_magic_context(self, history: list, openai_key: str, groq_key: str) -> str:
         """

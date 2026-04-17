@@ -4,9 +4,9 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QToolButton,
     QHBoxLayout,
     QMessageBox,
-    QWidget,
     QComboBox,
     QPlainTextEdit,
     QCheckBox,
@@ -36,16 +36,16 @@ class MagicContextWorker(QThread):
             history = stats.get_history()
 
             if not history:
-                 self.error.emit(tr("error_no_history") if tr("error_no_history") != "error_no_history" else "Нет сохраненной истории для анализа.")
-                 return
+                self.error.emit(tr("error_no_history"))
+                return
 
             client = ApiClient(openai_key=self.openai_key, groq_key=self.groq_key)
             result = client.generate_magic_context(history, self.openai_key, self.groq_key)
 
             if result:
-                 self.finished.emit(result)
+                self.finished.emit(result)
             else:
-                 self.error.emit(tr("error_generation_failed") if tr("error_generation_failed") != "error_generation_failed" else "Не удалось сгенерировать контекст.")
+                self.error.emit(tr("error_generation_failed"))
         except Exception as e:
             self.error.emit(str(e))
 
@@ -126,7 +126,7 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-        self.setFixedSize(400, 600)  # Increased height for extra API input
+        self.setFixedSize(400, 620)  # Increased height for extra API input
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
@@ -209,21 +209,31 @@ class SettingsDialog(QDialog):
 
         # User Context
         context_label_layout = QHBoxLayout()
-        context_label_layout.addWidget(QLabel(tr("context_label")))
-        context_label_layout.addStretch()
-        
-        self.magic_btn = QPushButton("Магия")
-        self.magic_btn.setFixedSize(50, 24)
-        self.magic_btn.setToolTip("Авто-генерация контекста на основе истории из логов")
+        context_label_layout.setContentsMargins(0, 0, 0, 0)
+        context_label_layout.setSpacing(8)
+
+        context_label = QLabel(tr("context_label"))
+        context_label.setMinimumWidth(0)
+        context_label_layout.addWidget(context_label, 1)
+
+        self.magic_btn = QToolButton()
+        self.magic_btn.setObjectName("magicContextButton")
+        self.magic_btn.setText("✨")
+        self.magic_btn.setFixedSize(28, 28)
+        self.magic_btn.setToolTip(tr("magic_context_tooltip"))
         self.magic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.magic_btn.clicked.connect(self.generate_magic_context)
-        context_label_layout.addWidget(self.magic_btn)
-        
+        context_label_layout.addWidget(
+            self.magic_btn,
+            0,
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+        )
+
         self.layout.addLayout(context_label_layout)
         
         self.context_input = QPlainTextEdit("")
         self.context_input.setPlaceholderText(tr("context_placeholder"))
-        self.context_input.setFixedHeight(70) # Slightly smaller for better fit
+        self.context_input.setFixedHeight(90)
         self.context_input.setStyleSheet(
             "QPlainTextEdit { background-color: #3d3d3d; color: white; border: 1px solid #555; border-radius: 5px; padding: 5px; font-family: 'Segoe UI'; } QPlainTextEdit:focus { border: 2px solid #0078D4; background-color: #454545; }"
         )
@@ -338,11 +348,15 @@ class SettingsDialog(QDialog):
         groq_key = self.groq_input.text().strip()
         
         if not openai_key and not groq_key:
-            QMessageBox.warning(self, tr("error_title"), "Please enter at least one API key (Groq or OpenAI) to use Magic Context.")
+            QMessageBox.warning(
+                self,
+                tr("error_title"),
+                tr("error_magic_context_api_key"),
+            )
             return
 
         self.magic_btn.setEnabled(False)
-        self.magic_btn.setText("...")
+        self.magic_btn.setText("…")
         
         self.magic_worker = MagicContextWorker(openai_key=openai_key, groq_key=groq_key)
         self.magic_worker.finished.connect(self._on_magic_success)
@@ -351,7 +365,7 @@ class SettingsDialog(QDialog):
 
     def _on_magic_success(self, context_str: str):
         self.magic_btn.setEnabled(True)
-        self.magic_btn.setText("Магия")
+        self.magic_btn.setText("✨")
         
         current_text = self.context_input.toPlainText().strip()
         if current_text:
@@ -368,7 +382,7 @@ class SettingsDialog(QDialog):
 
     def _on_magic_error(self, err_msg: str):
         self.magic_btn.setEnabled(True)
-        self.magic_btn.setText("Магия")
+        self.magic_btn.setText("✨")
         QMessageBox.warning(self, tr("error_title"), err_msg)
 
 

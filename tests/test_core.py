@@ -68,6 +68,14 @@ class TestConfig:
         assert config["correction_model"] == "gpt-4o-mini"
         assert config["transcription_language"] == "en"
 
+    def test_default_settings_include_prompts(self):
+        """Test defaults include prompt and language settings"""
+        from core.config import DEFAULT_SETTINGS
+
+        assert "system_prompt" in DEFAULT_SETTINGS
+        assert "translation_prompt" in DEFAULT_SETTINGS
+        assert DEFAULT_SETTINGS["transcription_language"] == "ru"
+
     def test_get_model_config_defaults(self):
         """Test model config with defaults"""
         from core.config import get_model_config
@@ -823,7 +831,34 @@ class TestApiClientExtended:
         text, usage = client.correct_text("Original text", provider="groq")
         
         assert text == "Original text"
-        assert usage == {}
+        assert usage["llm_failed"] is True
+
+    @patch('core.api_client.OpenAI')
+    def test_transcribe_uses_configured_language(self, mock_openai):
+        """Test transcription uses configured language from config"""
+        from core.api_client import ApiClient
+        from io import BytesIO
+
+        mock_client = MagicMock()
+        mock_openai.return_value = mock_client
+
+        transcription = MagicMock()
+        transcription.text = "Hello"
+        mock_client.audio.transcriptions.create.return_value = transcription
+
+        with patch('core.api_client.get_model_config', return_value={"transcription_language": "en"}):
+            client = ApiClient(openai_key="test-key")
+
+        buf = BytesIO(b"fake wav")
+        with patch('core.api_client.wave.open') as mock_wave_open:
+            mock_file = MagicMock()
+            mock_file.getnframes.return_value = 44100
+            mock_file.getframerate.return_value = 44100
+            mock_wave_open.return_value.__enter__.return_value = mock_file
+            client.transcribe(buf)
+
+        call_args = mock_client.audio.transcriptions.create.call_args
+        assert call_args.kwargs["language"] == "en"
 
     @patch('core.api_client.OpenAI')
     def test_correct_text_with_context(self, mock_openai):
@@ -895,51 +930,167 @@ class TestApiClientExtended:
 class TestHotkeyManager:
     """Test hotkey manager"""
 
-    @patch('core.hotkey_manager.keyboard')
-    def test_hotkey_manager_start(self, mock_keyboard):
+    @patch(
+        'core.hotkey_manager.HotkeyManager._ensure_message_window',
+        return_value=12345,
+    )
+    @patch('core.hotkey_manager.HotkeyManager._register_hotkey')
+    def test_hotkey_manager_start(self, mock_register_hotkey, mock_ensure_window):
         """Test hotkey manager start"""
         from core.hotkey_manager import HotkeyManager
 
         manager = HotkeyManager("ctrl+alt+s")
         manager.start()
-        
-        mock_keyboard.add_hotkey.assert_called_once_with(
-            "ctrl+alt+s", manager.on_trigger, suppress=True
-        )
 
-    @patch('core.hotkey_manager.keyboard')
-    def test_hotkey_manager_stop(self, mock_keyboard):
+        mock_ensure_window.assert_called_once()
+        mock_register_hotkey.assert_called_once()
+        assert manager.hotkey_id is not None
+        assert manager._hwnd == 12345
+        assert manager.is_registered is True
+
+    @patch('core.hotkey_manager.HotkeyManager._unregister_hotkey')
+    def test_hotkey_manager_stop(self, mock_unregister_hotkey):
         """Test hotkey manager stop"""
         from core.hotkey_manager import HotkeyManager
 
         manager = HotkeyManager("ctrl+alt+s")
+        manager.hotkey_id = 1001
+        manager.is_registered = True
+        HotkeyManager._instances_by_id[1001] = manager
         manager.stop()
-        
-        mock_keyboard.remove_hotkey.assert_called_once_with("ctrl+alt+s")
 
-    @patch('core.hotkey_manager.keyboard')
-    def test_update_hotkey_same(self, mock_keyboard):
+        mock_unregister_hotkey.assert_called_once_with(1001)
+        assert manager.hotkey_id is None
+        assert manager.is_registered is False
+
+    def test_update_hotkey_same(self):
         """Test update_hotkey with same combination"""
         from core.hotkey_manager import HotkeyManager
 
         manager = HotkeyManager("ctrl+alt+s")
         result = manager.update_hotkey("ctrl+alt+s")
-        
-        assert result is True
-        mock_keyboard.remove_hotkey.assert_not_called()
 
-    @patch('core.hotkey_manager.keyboard')
-    def test_update_hotkey_different(self, mock_keyboard):
+        assert result is True
+
+    @patch('core.hotkey_manager.HotkeyManager.start')
+    @patch('core.hotkey_manager.HotkeyManager.stop')
+    def test_update_hotkey_different(self, mock_stop, mock_start):
         """Test update_hotkey with different combination"""
         from core.hotkey_manager import HotkeyManager
 
         manager = HotkeyManager("ctrl+alt+s")
         result = manager.update_hotkey("ctrl+alt+d")
-        
+
         assert result is True
         assert manager.combination == "ctrl+alt+d"
-        mock_keyboard.remove_hotkey.assert_called()
-        mock_keyboard.add_hotkey.assert_called()
+        mock_stop.assert_called_once()
+        mock_start.assert_called_once()
+
+    @patch('core.hotkey_manager.HotkeyManager.start')
+    def test_ensure_registered_recovers_missing_hook(self, mock_start):
+        """Test hotkey manager can recover a dropped registration"""
+        from core.hotkey_manager import HotkeyManager
+
+        manager = HotkeyManager("ctrl+alt+s")
+
+        assert manager.ensure_registered() is True
+        mock_start.assert_called_once()
+
+    def test_ensure_registered_keeps_existing_registration(self):
+        """Test health check does not rebind an already active hotkey"""
+        from core.hotkey_manager import HotkeyManager
+
+        manager = HotkeyManager("ctrl+alt+s")
+        manager.hotkey_id = 1002
+        manager.is_registered = True
+        manager._modifiers = 1
+        manager._vk_code = 65
+        manager._hwnd = 12345
+        HotkeyManager._instances_by_id[1002] = manager
+
+        assert manager.ensure_registered() is True
+
+    def test_parse_combination_supports_cyrillic_key(self):
+        """Test native parser accepts layout-specific letters."""
+        from core.hotkey_manager import HotkeyManager
+
+        modifiers, vk_code = HotkeyManager.parse_combination("alt+ф")
+
+        assert modifiers != 0
+        assert isinstance(vk_code, int)
+
+    def test_windows_message_event_accepts_pyqt6_bytes(self):
+        """Test PyQt6 native event names are accepted when passed as bytes."""
+        from core.hotkey_manager import _is_windows_message_event
+
+        class QtByteArrayLike:
+            def __bytes__(self):
+                return b"windows_generic_MSG"
+
+        assert _is_windows_message_event(b"windows_generic_MSG") is True
+        assert _is_windows_message_event(QtByteArrayLike()) is True
+        assert _is_windows_message_event(b"windows_dispatcher_MSG") is True
+        assert _is_windows_message_event("windows_generic_MSG") is True
+        assert _is_windows_message_event(b"other") is False
+
+    @patch(
+        'core.hotkey_manager.HotkeyManager.can_register_combination',
+        return_value=True,
+    )
+    def test_repair_hotkey_settings_keeps_available_hotkeys(self, mock_can_register):
+        """Test startup repair leaves valid available hotkeys unchanged."""
+        from core.hotkey_manager import repair_hotkey_settings
+
+        settings = {
+            "hotkey": "alt+a",
+            "translation_hotkey": "alt+t",
+            "cancel_hotkey": "alt+c",
+        }
+
+        assert repair_hotkey_settings(settings) is False
+        assert settings["hotkey"] == "alt+a"
+        assert settings["translation_hotkey"] == "alt+t"
+        assert settings["cancel_hotkey"] == "alt+c"
+        assert mock_can_register.call_count == 3
+
+    @patch('core.hotkey_manager.HotkeyManager.can_register_combination')
+    def test_repair_hotkey_settings_replaces_unavailable_hotkey(self, mock_can_register):
+        """Test startup repair chooses fallback when a hotkey is unavailable."""
+        from core.hotkey_manager import repair_hotkey_settings
+
+        def can_register(combination, hotkey_id):
+            return combination != "alt+a"
+
+        mock_can_register.side_effect = can_register
+        settings = {
+            "hotkey": "alt+a",
+            "translation_hotkey": "alt+t",
+            "cancel_hotkey": "alt+c",
+        }
+
+        assert repair_hotkey_settings(settings) is True
+        assert settings["hotkey"] == "ctrl+alt+s"
+        assert settings["translation_hotkey"] == "alt+t"
+        assert settings["cancel_hotkey"] == "alt+c"
+
+    @patch(
+        'core.hotkey_manager.HotkeyManager.can_register_combination',
+        return_value=True,
+    )
+    def test_repair_hotkey_settings_replaces_duplicate_hotkeys(self, mock_can_register):
+        """Test startup repair prevents duplicate hotkey combinations."""
+        from core.hotkey_manager import repair_hotkey_settings
+
+        settings = {
+            "hotkey": "alt+a",
+            "translation_hotkey": "alt+a",
+            "cancel_hotkey": "alt+a",
+        }
+
+        assert repair_hotkey_settings(settings) is True
+        assert settings["hotkey"] == "alt+a"
+        assert settings["translation_hotkey"] == "alt+t"
+        assert settings["cancel_hotkey"] == "alt+c"
 
 
 if __name__ == "__main__":

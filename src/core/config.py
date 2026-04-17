@@ -25,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.10.2"
+APP_VERSION = "1.10.4"
 
 SYSTEM_PROMPT = (
     "You are an advanced ASR (Automatic Speech Recognition) Post-Processing Engine. "
@@ -91,10 +91,13 @@ DEFAULT_SETTINGS = {
     "translation_hotkey": "alt+t",
     "cancel_hotkey": "alt+c",
     "app_language": "ru",
+    "transcription_language": "ru",
     "use_llm_correction": True,
     "correction_model": "gpt-4o-mini",
     "context_window_chars": 1000,
     "user_context": "Programming, devops, ai prompt engenering.",
+    "system_prompt": SYSTEM_PROMPT,
+    "translation_prompt": TRANSLATION_PROMPT,
     "startup": False,
 }
 # Retry Configuration
