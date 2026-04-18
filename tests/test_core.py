@@ -307,19 +307,31 @@ class TestAudioRecorder:
 class TestTextProcessor:
     """Test text processor"""
 
+    @patch('core.text_process.TextProcessor._restore_target_window')
     @patch('core.text_process.threading.Timer')
     @patch('core.text_process.pyperclip')
     @patch('core.text_process.keyboard')
-    def test_paste_text(self, mock_keyboard, mock_pyperclip, mock_timer):
+    def test_paste_text(
+        self,
+        mock_keyboard,
+        mock_pyperclip,
+        mock_timer,
+        mock_restore_target_window,
+    ):
         """Test text paste functionality"""
         from core.text_process import TextProcessor
 
         test_text = "Test text to paste"
-        TextProcessor.paste_text(test_text)
+        target_hwnd = 12345
+        TextProcessor.paste_text(test_text, target_hwnd=target_hwnd)
 
         mock_pyperclip.copy.assert_called_once_with(test_text)
-        mock_timer.assert_called_once()
+        mock_timer.assert_called_once_with(0.2, mock_timer.call_args.args[1])
         mock_timer.return_value.start.assert_called_once()
+        paste_callback = mock_timer.call_args.args[1]
+        paste_callback()
+        mock_restore_target_window.assert_called_once_with(target_hwnd)
+        mock_keyboard.send.assert_called_once_with("ctrl+v")
 
 
 
@@ -1019,6 +1031,23 @@ class TestHotkeyManager:
         assert modifiers != 0
         assert isinstance(vk_code, int)
 
+    def test_focus_safe_combination_rejects_pure_alt(self):
+        """Test pure Alt hotkeys are rejected as unsafe for focus."""
+        from core.hotkey_manager import HotkeyManager
+
+        assert HotkeyManager.is_focus_safe_combination("ctrl+alt+s") is True
+        assert HotkeyManager.is_focus_safe_combination("ctrl+shift+x") is True
+        assert HotkeyManager.is_focus_safe_combination("alt+a") is False
+
+    def test_normalize_hotkey_combination_migrates_legacy_alt_defaults(self):
+        """Test startup normalization upgrades legacy Alt-only defaults."""
+        from core.hotkey_manager import normalize_hotkey_combination
+
+        assert normalize_hotkey_combination("hotkey", "alt+a") == "ctrl+alt+s"
+        assert normalize_hotkey_combination("translation_hotkey", "alt+t") == "ctrl+alt+t"
+        assert normalize_hotkey_combination("cancel_hotkey", "alt+c") == "ctrl+alt+x"
+        assert normalize_hotkey_combination("hotkey", "alt+q") == "ctrl+alt+q"
+
     def test_windows_message_event_accepts_pyqt6_bytes(self):
         """Test PyQt6 native event names are accepted when passed as bytes."""
         from core.hotkey_manager import _is_windows_message_event
@@ -1042,16 +1071,35 @@ class TestHotkeyManager:
         from core.hotkey_manager import repair_hotkey_settings
 
         settings = {
+            "hotkey": "ctrl+alt+s",
+            "translation_hotkey": "ctrl+alt+t",
+            "cancel_hotkey": "ctrl+alt+x",
+        }
+
+        assert repair_hotkey_settings(settings) is False
+        assert settings["hotkey"] == "ctrl+alt+s"
+        assert settings["translation_hotkey"] == "ctrl+alt+t"
+        assert settings["cancel_hotkey"] == "ctrl+alt+x"
+        assert mock_can_register.call_count == 3
+
+    @patch(
+        'core.hotkey_manager.HotkeyManager.can_register_combination',
+        return_value=True,
+    )
+    def test_repair_hotkey_settings_migrates_legacy_alt_defaults(self, mock_can_register):
+        """Test startup repair upgrades legacy defaults to focus-safe hotkeys."""
+        from core.hotkey_manager import repair_hotkey_settings
+
+        settings = {
             "hotkey": "alt+a",
             "translation_hotkey": "alt+t",
             "cancel_hotkey": "alt+c",
         }
 
-        assert repair_hotkey_settings(settings) is False
-        assert settings["hotkey"] == "alt+a"
-        assert settings["translation_hotkey"] == "alt+t"
-        assert settings["cancel_hotkey"] == "alt+c"
-        assert mock_can_register.call_count == 3
+        assert repair_hotkey_settings(settings) is True
+        assert settings["hotkey"] == "ctrl+alt+s"
+        assert settings["translation_hotkey"] == "ctrl+alt+t"
+        assert settings["cancel_hotkey"] == "ctrl+alt+x"
 
     @patch('core.hotkey_manager.HotkeyManager.can_register_combination')
     def test_repair_hotkey_settings_replaces_unavailable_hotkey(self, mock_can_register):
@@ -1070,8 +1118,8 @@ class TestHotkeyManager:
 
         assert repair_hotkey_settings(settings) is True
         assert settings["hotkey"] == "ctrl+alt+s"
-        assert settings["translation_hotkey"] == "alt+t"
-        assert settings["cancel_hotkey"] == "alt+c"
+        assert settings["translation_hotkey"] == "ctrl+alt+t"
+        assert settings["cancel_hotkey"] == "ctrl+alt+x"
 
     @patch(
         'core.hotkey_manager.HotkeyManager.can_register_combination',
@@ -1088,9 +1136,9 @@ class TestHotkeyManager:
         }
 
         assert repair_hotkey_settings(settings) is True
-        assert settings["hotkey"] == "alt+a"
-        assert settings["translation_hotkey"] == "alt+t"
-        assert settings["cancel_hotkey"] == "alt+c"
+        assert settings["hotkey"] == "ctrl+alt+s"
+        assert settings["translation_hotkey"] == "ctrl+alt+a"
+        assert settings["cancel_hotkey"] == "ctrl+alt+x"
 
 
 if __name__ == "__main__":

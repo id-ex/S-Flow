@@ -33,14 +33,19 @@ HOTKEY_SETTING_KEYS = ("hotkey", "translation_hotkey", "cancel_hotkey")
 _HOTKEY_PRECHECK_BASE_ID = 0x5F10
 
 _HOTKEY_FALLBACKS = {
-    "hotkey": ("alt+a", "ctrl+alt+s", "ctrl+shift+s", "ctrl+alt+shift+s"),
+    "hotkey": ("ctrl+alt+s", "ctrl+shift+s", "ctrl+alt+shift+s"),
     "translation_hotkey": (
-        "alt+t",
         "ctrl+alt+t",
         "ctrl+shift+t",
         "ctrl+alt+shift+t",
     ),
-    "cancel_hotkey": ("alt+c", "ctrl+alt+x", "ctrl+shift+x", "ctrl+alt+shift+x"),
+    "cancel_hotkey": ("ctrl+alt+x", "ctrl+shift+x", "ctrl+alt+shift+x"),
+}
+
+_LEGACY_HOTKEY_MIGRATIONS = {
+    "hotkey": {"alt+a": "ctrl+alt+s"},
+    "translation_hotkey": {"alt+t": "ctrl+alt+t"},
+    "cancel_hotkey": {"alt+c": "ctrl+alt+x"},
 }
 
 _MODIFIER_MAP = {
@@ -234,6 +239,12 @@ class HotkeyManager(QObject):
         vk_code, derived_modifiers = cls._parse_key_token(main_tokens[0])
         return modifiers | derived_modifiers, vk_code
 
+    @classmethod
+    def is_focus_safe_combination(cls, combination: str) -> bool:
+        """Return False for pure Alt hotkeys that steal focus in many apps."""
+        modifiers, _ = cls.parse_combination(combination)
+        return modifiers != MOD_ALT
+
     @staticmethod
     def _registration_modifiers(modifiers: int) -> int:
         return modifiers | MOD_NOREPEAT
@@ -380,6 +391,28 @@ def _unique_candidates(*groups: str | tuple[str, ...]) -> list[str]:
     return result
 
 
+def normalize_hotkey_combination(setting_key: str, combination: str) -> str:
+    """Normalize unsafe legacy hotkeys to focus-safe combinations."""
+    normalized = combination.strip().lower()
+    if not normalized:
+        return normalized
+
+    legacy_map = _LEGACY_HOTKEY_MIGRATIONS.get(setting_key, {})
+    if normalized in legacy_map:
+        return legacy_map[normalized]
+
+    try:
+        if HotkeyManager.is_focus_safe_combination(normalized):
+            return normalized
+    except ValueError:
+        return normalized
+
+    if normalized.startswith("alt+"):
+        return f"ctrl+{normalized}"
+
+    return normalized
+
+
 def repair_hotkey_settings(settings: dict) -> bool:
     """Preflight hotkey settings before the app starts registering them.
 
@@ -390,7 +423,8 @@ def repair_hotkey_settings(settings: dict) -> bool:
     changed = False
 
     for index, key in enumerate(HOTKEY_SETTING_KEYS):
-        current_value = str(settings.get(key, "")).strip()
+        original_value = str(settings.get(key, "")).strip()
+        current_value = normalize_hotkey_combination(key, original_value)
         candidates = _unique_candidates(current_value, _HOTKEY_FALLBACKS[key])
         selected: str | None = None
 
@@ -420,11 +454,11 @@ def repair_hotkey_settings(settings: dict) -> bool:
             logger.error("No available startup hotkey candidate found for %s", key)
             continue
 
-        if selected != current_value:
+        if selected != original_value:
             logger.warning(
                 "Repairing %s from %r to %r before startup",
                 key,
-                current_value,
+                original_value,
                 selected,
             )
             settings[key] = selected

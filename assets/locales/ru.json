@@ -25,6 +25,7 @@
     "logs_btn": "Просмотр логов",
     "error_title": "Ошибка",
     "error_empty_hotkey": "Хоткей не может быть пустым",
+    "error_unsafe_alt_hotkey": "Хоткеи вида Alt+буква конфликтуют с фокусом окна в Windows. Используйте Ctrl+Alt+клавиша или Ctrl+Shift+клавиша.",
     "error_empty_api": "API Key не может быть пустым",
     "settings_saved": "Настройки сохранены",
     "menu_settings": "Настройки",

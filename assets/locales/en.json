@@ -31,6 +31,7 @@
     "logs_btn": "View Logs",
     "error_title": "Error",
     "error_empty_hotkey": "Hotkey cannot be empty",
+    "error_unsafe_alt_hotkey": "Alt+letter hotkeys conflict with window focus on Windows. Use Ctrl+Alt+key or Ctrl+Shift+key instead.",
     "error_empty_api": "API Key cannot be empty",
     "settings_saved": "Settings Saved",
     "menu_settings": "Settings",

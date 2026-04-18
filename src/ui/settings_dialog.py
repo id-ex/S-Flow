@@ -309,6 +309,8 @@ class SettingsDialog(QDialog):
                 self.setStyleSheet(f.read())
 
     def save_settings(self):
+        from core.hotkey_manager import HotkeyManager
+
         new_hotkey = self.hotkey_input.text().strip()
         new_cancel_hotkey = self.cancel_hotkey_input.text().strip()
         new_translation_hotkey = self.translation_hotkey_input.text().strip()
@@ -323,6 +325,26 @@ class SettingsDialog(QDialog):
 
         if not new_hotkey:
             QMessageBox.warning(self, tr("error_title"), tr("error_empty_hotkey"))
+            return
+
+        hotkeys_to_validate = (
+            new_hotkey,
+            new_translation_hotkey,
+            new_cancel_hotkey,
+        )
+        try:
+            if any(
+                hotkey and not HotkeyManager.is_focus_safe_combination(hotkey)
+                for hotkey in hotkeys_to_validate
+            ):
+                QMessageBox.warning(
+                    self,
+                    tr("error_title"),
+                    tr("error_unsafe_alt_hotkey"),
+                )
+                return
+        except ValueError as e:
+            QMessageBox.warning(self, tr("error_title"), str(e))
             return
 
         if not new_groq_key and not new_openai_key:

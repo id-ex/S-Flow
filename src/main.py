@@ -160,6 +160,7 @@ class AppController(QObject):
         self.is_processing = False
         self.is_shutting_down = False
         self.hotkeys_suspended = False
+        self.paste_target_hwnd = None
 
         # Initialize Locale
         lang = self.settings.get("app_language", "ru")
@@ -513,6 +514,7 @@ class AppController(QObject):
                 logger.warning("Recording stopped but no audio chunks returned")
         else:
             # Start
+            self.paste_target_hwnd = TextProcessor.get_foreground_window()
             self.audio_recorder.start_recording()
             self.overlay.show_message(tr("recording_started"))
 
@@ -580,7 +582,10 @@ class AppController(QObject):
 
             # History is now parsed from app.log directly in StatsManager
 
-            TextProcessor.paste_text(corrected_text)
+            TextProcessor.paste_text(
+                corrected_text, target_hwnd=self.paste_target_hwnd
+            )
+            self.paste_target_hwnd = None
             logger.info("Processing finished successfully")
         else:
             # Show specific error from worker
@@ -607,6 +612,7 @@ class AppController(QObject):
 
             self.overlay.show_message(error_text, duration=3000)
             logger.error(f"Processing failed: {error_text}")
+            self.paste_target_hwnd = None
 
     def quit_app(self):
         logger.info("Quitting application")

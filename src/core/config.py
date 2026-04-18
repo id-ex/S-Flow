@@ -25,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.10.4"
+APP_VERSION = "1.10.5"
 
 SYSTEM_PROMPT = (
     "You are an advanced ASR (Automatic Speech Recognition) Post-Processing Engine. "
@@ -87,9 +87,9 @@ TRANSLATION_PROMPT = (
 
 
 DEFAULT_SETTINGS = {
-    "hotkey": "alt+a",
-    "translation_hotkey": "alt+t",
-    "cancel_hotkey": "alt+c",
+    "hotkey": "ctrl+alt+s",
+    "translation_hotkey": "ctrl+alt+t",
+    "cancel_hotkey": "ctrl+alt+x",
     "app_language": "ru",
     "transcription_language": "ru",
     "use_llm_correction": True,
