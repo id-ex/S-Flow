@@ -32,6 +32,9 @@ app.log
 
 # Testing
 .pytest_cache/
+.pytest-basetemp/
+.pytest-tmp/
+pytest_temp_run/
 .coverage
 htmlcov/
 *.cover

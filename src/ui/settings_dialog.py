@@ -10,9 +10,11 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QPlainTextEdit,
     QCheckBox,
+    QWidget,
+    QFrame,
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QThread
-from PyQt6.QtGui import QKeySequence, QIcon, QKeyEvent
+from PyQt6.QtGui import QColor, QKeySequence, QIcon, QKeyEvent, QPainter, QPen, QPixmap
 import os
 from core.locale_manager import tr
 from core.config import get_resource_path, LOG_PATH
@@ -97,6 +99,81 @@ class HotkeyEdit(QLineEdit):
         self.setText(final_hotkey)
 
 
+class EyeToggleButton(QToolButton):
+    """Password visibility button rendered in the app style."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setFixedSize(34, 34)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.open_icon = QPixmap(get_resource_path("assets/icons/eye-open.png"))
+        self.closed_icon = QPixmap(get_resource_path("assets/icons/eye-off.png"))
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._paint_background(painter)
+
+        icon = self.open_icon if self.isChecked() else self.closed_icon
+        self._paint_icon(painter, icon)
+
+    def _paint_icon(self, painter: QPainter, icon: QPixmap) -> None:
+        if icon.isNull():
+            return
+
+        size = 20
+        x = (self.width() - size) // 2
+        y = (self.height() - size) // 2
+        painter.setOpacity(1.0 if self.isEnabled() else 0.45)
+        painter.drawPixmap(x, y, size, size, icon)
+        painter.setOpacity(1.0)
+
+    def _paint_background(self, painter: QPainter) -> None:
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        bg = QColor("#252b42") if not self.underMouse() else QColor("#2d3552")
+        border = QColor("#4a5680") if not self.underMouse() else QColor("#68d6ff")
+        painter.setPen(QPen(border, 1))
+        painter.setBrush(bg)
+        painter.drawRoundedRect(rect, 10, 10)
+
+
+class MagicContextButton(QToolButton):
+    """Subtle magic-context action button matching the settings palette."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(34, 34)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.icon_pixmap = QPixmap(get_resource_path("assets/icons/magic-context.png"))
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        bg = QColor("#252b42") if self.isEnabled() else QColor("#1d2336")
+        if self.underMouse() and self.isEnabled():
+            bg = QColor("#2d3552")
+        border = QColor("#4a5680") if self.isEnabled() else QColor("#384263")
+        if self.underMouse() and self.isEnabled():
+            border = QColor("#68d6ff")
+
+        painter.setPen(QPen(border, 1))
+        painter.setBrush(bg)
+        painter.drawRoundedRect(rect, 10, 10)
+
+        if self.icon_pixmap.isNull():
+            return
+
+        size = 20
+        x = (self.width() - size) // 2
+        y = (self.height() - size) // 2
+        painter.setOpacity(1.0 if self.isEnabled() else 0.45)
+        painter.drawPixmap(x, y, size, size, self.icon_pixmap)
+        painter.setOpacity(1.0)
+
+
 class SettingsDialog(QDialog):
     def __init__(
         self,
@@ -126,65 +203,65 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle(f"{tr('settings_title')} v{APP_VERSION}")
         self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
-        self.setFixedSize(400, 620)  # Increased height for extra API input
+        self.setFixedSize(432, 748)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
 
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(11, 10, 11, 10)
+        self.layout.setSpacing(9)
         self.setLayout(self.layout)
 
-        # Hotkey
-        self.layout.addWidget(QLabel(tr("hotkey_label")))
+        hotkeys_section, hotkeys_layout = self._create_section()
+        hotkeys_layout.addWidget(QLabel(tr("hotkey_label")))
         self.hotkey_input = HotkeyEdit(current_hotkey)
-        self.layout.addWidget(self.hotkey_input)
+        hotkeys_layout.addWidget(self.hotkey_input)
 
-        # Translation Hotkey
-        self.layout.addWidget(QLabel(tr("translation_hotkey_label")))
+        hotkeys_layout.addWidget(QLabel(tr("translation_hotkey_label")))
         self.translation_hotkey_input = HotkeyEdit(translation_hotkey)
-        self.layout.addWidget(self.translation_hotkey_input)
+        hotkeys_layout.addWidget(self.translation_hotkey_input)
 
-        # Cancel Hotkey
-        self.layout.addWidget(QLabel(tr("cancel_hotkey_label")))
+        hotkeys_layout.addWidget(QLabel(tr("cancel_hotkey_label")))
         self.cancel_hotkey_input = HotkeyEdit(cancel_hotkey)
-        self.layout.addWidget(self.cancel_hotkey_input)
-        self.layout.addSpacing(15) # Gap after hotkeys group
+        hotkeys_layout.addWidget(self.cancel_hotkey_input)
+        self.layout.addWidget(hotkeys_section)
 
-        # Groq API Key
+        api_section, api_layout = self._create_section()
+
         groq_label_layout = QHBoxLayout()
-        groq_label = QLabel("Groq API Key (Primary)")
-        groq_link = QLabel('<a href="https://console.groq.com/keys" style="color: #4da6ff; text-decoration: none;">(Groq Cloud)</a>')
+        groq_label_layout.setSpacing(4)
+        groq_label = QLabel("Groq API Key")
+        groq_link = QLabel('<a href="https://console.groq.com/keys">(Groq Cloud)</a>')
         groq_link.setOpenExternalLinks(True)
         groq_link.setCursor(Qt.CursorShape.PointingHandCursor)
         groq_label_layout.addWidget(groq_label)
         groq_label_layout.addWidget(groq_link)
         groq_label_layout.addStretch()
-        self.layout.addLayout(groq_label_layout)
+        api_layout.addLayout(groq_label_layout)
         
-        self.groq_input = QLineEdit(groq_key)
-        self.groq_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.groq_input = self._create_password_input(groq_key, "gsk_...", api_layout)
         self.groq_input.setPlaceholderText("gsk_...")
-        self.layout.addWidget(self.groq_input)
 
-        # OpenAI API Key
         openai_label_layout = QHBoxLayout()
-        openai_label = QLabel("OpenAI API Key (Fallback)")
-        openai_link = QLabel('<a href="https://platform.openai.com/api-keys" style="color: #4da6ff; text-decoration: none;">(OpenAI Platform)</a>')
+        openai_label_layout.setSpacing(4)
+        openai_label = QLabel("OpenAI API Key")
+        openai_link = QLabel('<a href="https://platform.openai.com/api-keys">(OpenAI Platform)</a>')
         openai_link.setOpenExternalLinks(True)
         openai_link.setCursor(Qt.CursorShape.PointingHandCursor)
         openai_label_layout.addWidget(openai_label)
         openai_label_layout.addWidget(openai_link)
         openai_label_layout.addStretch()
-        self.layout.addLayout(openai_label_layout)
+        api_layout.addLayout(openai_label_layout)
 
-        self.openai_input = QLineEdit(openai_key)
-        self.openai_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.openai_input = self._create_password_input(openai_key, "sk-...", api_layout)
         self.openai_input.setPlaceholderText("sk-...")
-        self.layout.addWidget(self.openai_input)
 
         llm_layout = QHBoxLayout()
+        llm_layout.setContentsMargins(0, 2, 0, 0)
+        llm_layout.setSpacing(10)
         llm_label = QLabel(tr("correction_model_label"))
-        llm_layout.addWidget(llm_label)
+        llm_layout.addWidget(llm_label, 1)
 
         self.model_combo = QComboBox()
         self.populate_models(openai_key, groq_key)
@@ -201,13 +278,12 @@ class SettingsDialog(QDialog):
         self.groq_input.textChanged.connect(self._update_models)
         self.openai_input.textChanged.connect(self._update_models)
 
+        self.model_combo.setMinimumWidth(164)
         llm_layout.addWidget(self.model_combo)
-        llm_layout.addStretch()
-        self.layout.addLayout(llm_layout)
+        api_layout.addLayout(llm_layout)
+        self.layout.addWidget(api_section)
 
-        self.layout.addSpacing(15) # Gap after API/AI group
-
-        # User Context
+        context_section, context_layout = self._create_section()
         context_label_layout = QHBoxLayout()
         context_label_layout.setContentsMargins(0, 0, 0, 0)
         context_label_layout.setSpacing(8)
@@ -216,12 +292,9 @@ class SettingsDialog(QDialog):
         context_label.setMinimumWidth(0)
         context_label_layout.addWidget(context_label, 1)
 
-        self.magic_btn = QToolButton()
+        self.magic_btn = MagicContextButton(self)
         self.magic_btn.setObjectName("magicContextButton")
-        self.magic_btn.setText("✨")
-        self.magic_btn.setFixedSize(28, 28)
         self.magic_btn.setToolTip(tr("magic_context_tooltip"))
-        self.magic_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.magic_btn.clicked.connect(self.generate_magic_context)
         context_label_layout.addWidget(
             self.magic_btn,
@@ -229,46 +302,44 @@ class SettingsDialog(QDialog):
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
         )
 
-        self.layout.addLayout(context_label_layout)
+        context_layout.addLayout(context_label_layout)
         
         self.context_input = QPlainTextEdit("")
         self.context_input.setPlaceholderText(tr("context_placeholder"))
-        self.context_input.setFixedHeight(90)
-        self.context_input.setStyleSheet(
-            "QPlainTextEdit { background-color: #3d3d3d; color: white; border: 1px solid #555; border-radius: 5px; padding: 5px; font-family: 'Segoe UI'; } QPlainTextEdit:focus { border: 2px solid #0078D4; background-color: #454545; }"
-        )
-        self.layout.addWidget(self.context_input)
-        self.layout.addSpacing(10)
+        self.context_input.setFixedHeight(116)
+        context_layout.addWidget(self.context_input)
+        self.layout.addWidget(context_section)
 
-        # Language & Startup Row
+        language_section, language_layout = self._create_section()
         lang_startup_layout = QHBoxLayout()
+        lang_startup_layout.setSpacing(10)
 
-        lang_startup_layout.addWidget(QLabel(tr("language_label")))
+        lang_startup_layout.addWidget(QLabel(tr("language_label")), 1)
         self.lang_combo = QComboBox()
         self.lang_combo.addItem("Русский", "ru")
         self.lang_combo.addItem("English", "en")
         index = self.lang_combo.findData(current_lang)
         if index >= 0:
             self.lang_combo.setCurrentIndex(index)
+        self.lang_combo.setMinimumWidth(164)
         lang_startup_layout.addWidget(self.lang_combo)
 
-        lang_startup_layout.addSpacing(15)
+        language_layout.addLayout(lang_startup_layout)
 
         self.startup_check = QCheckBox(tr("startup_label"))
         self.startup_check.setChecked(current_startup)
-        lang_startup_layout.addWidget(self.startup_check)
+        language_layout.addWidget(self.startup_check)
+        self.layout.addWidget(language_section)
 
-        lang_startup_layout.addStretch()
-
-        self.layout.addLayout(lang_startup_layout)
-        self.layout.addSpacing(10)
-
-        # Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(8)
         save_btn = QPushButton(tr("save_btn"))
+        save_btn.setObjectName("primaryButton")
         save_btn.clicked.connect(self.save_settings)
 
         logs_btn = QPushButton(tr("logs_btn"))
+        logs_btn.setObjectName("secondaryButton")
         logs_btn.clicked.connect(self.open_logs)
 
         btn_layout.addWidget(save_btn)
@@ -276,6 +347,54 @@ class SettingsDialog(QDialog):
         self.layout.addLayout(btn_layout)
 
         self.load_styles()
+
+    def _create_section(self) -> tuple[QFrame, QVBoxLayout]:
+        section = QFrame(self)
+        section.setObjectName("settingsSection")
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(10, 9, 10, 9)
+        layout.setSpacing(6)
+        return section, layout
+
+    def _create_password_input(
+        self,
+        value: str,
+        placeholder: str,
+        parent_layout: QVBoxLayout,
+    ) -> QLineEdit:
+        row = QWidget(self)
+        row.setObjectName("passwordRow")
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(7)
+
+        line_edit = QLineEdit(value)
+        line_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        line_edit.setPlaceholderText(placeholder)
+        row_layout.addWidget(line_edit, 1)
+
+        line_edit.setObjectName("apiKeyInput")
+
+        reveal_btn = EyeToggleButton(self)
+        reveal_btn.setObjectName("revealButton")
+        reveal_btn.setToolTip(tr("show_api_key_tooltip"))
+        reveal_btn.toggled.connect(
+            lambda checked, edit=line_edit: edit.setEchoMode(
+                QLineEdit.EchoMode.Normal
+                if checked
+                else QLineEdit.EchoMode.Password
+            )
+        )
+        reveal_btn.toggled.connect(
+            lambda checked, btn=reveal_btn: btn.setToolTip(
+                tr("hide_api_key_tooltip")
+                if checked
+                else tr("show_api_key_tooltip")
+            )
+        )
+        row_layout.addWidget(reveal_btn)
+        parent_layout.addWidget(row)
+        return line_edit
 
     def _update_models(self):
         current_model = self.model_combo.currentData()
@@ -343,6 +462,29 @@ class SettingsDialog(QDialog):
                     tr("error_unsafe_alt_hotkey"),
                 )
                 return
+            parsed_hotkeys = [
+                HotkeyManager.parse_combination(hotkey)
+                for hotkey in hotkeys_to_validate
+                if hotkey
+            ]
+            if len(parsed_hotkeys) != len(set(parsed_hotkeys)):
+                QMessageBox.warning(
+                    self,
+                    tr("error_title"),
+                    tr("error_duplicate_hotkeys"),
+                )
+                return
+            for index, hotkey in enumerate(hotkeys_to_validate):
+                if hotkey and not HotkeyManager.can_register_combination(
+                    hotkey,
+                    0x6F20 + index,
+                ):
+                    QMessageBox.warning(
+                        self,
+                        tr("error_title"),
+                        tr("error_unavailable_hotkey").format(hotkey=hotkey),
+                    )
+                    return
         except ValueError as e:
             QMessageBox.warning(self, tr("error_title"), str(e))
             return
@@ -378,7 +520,6 @@ class SettingsDialog(QDialog):
             return
 
         self.magic_btn.setEnabled(False)
-        self.magic_btn.setText("…")
         
         self.magic_worker = MagicContextWorker(openai_key=openai_key, groq_key=groq_key)
         self.magic_worker.finished.connect(self._on_magic_success)
@@ -387,24 +528,10 @@ class SettingsDialog(QDialog):
 
     def _on_magic_success(self, context_str: str):
         self.magic_btn.setEnabled(True)
-        self.magic_btn.setText("✨")
-        
-        current_text = self.context_input.toPlainText().strip()
-        if current_text:
-            # Append uniquely
-            existing_items = [item.strip() for item in current_text.split(",") if item.strip()]
-            new_items = [item.strip() for item in context_str.split(",") if item.strip()]
-            combined = existing_items
-            for item in new_items:
-                if item not in combined:
-                    combined.append(item)
-            self.context_input.setPlainText(", ".join(combined))
-        else:
-            self.context_input.setPlainText(context_str)
+        self.context_input.setPlainText(context_str.strip())
 
     def _on_magic_error(self, err_msg: str):
         self.magic_btn.setEnabled(True)
-        self.magic_btn.setText("✨")
         QMessageBox.warning(self, tr("error_title"), err_msg)
 
 

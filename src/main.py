@@ -143,6 +143,8 @@ class ProcessingWorker(QThread):
 
 
 class AppController(QObject):
+    audio_level_changed = pyqtSignal(float)
+
     def __init__(self, app, settings=None):
         super().__init__()
         self.app = app
@@ -168,6 +170,7 @@ class AppController(QObject):
 
         # UI Components
         self.overlay = StatusOverlay()
+        self.audio_level_changed.connect(self.overlay.set_audio_level)
 
         # API & Logic
         self.api_client = self._create_api_client()
@@ -176,7 +179,8 @@ class AppController(QObject):
         self.audio_recorder = AudioRecorder(
             on_error=lambda msg: self.overlay.show_message(
                 f"{tr('error_title')}: {msg}", duration=4000
-            )
+            ),
+            on_level=self.audio_level_changed.emit,
         )
         self.stats_manager = StatsManager()
         self.update_manager = UpdateManager()
@@ -233,7 +237,7 @@ class AppController(QObject):
         self.update_tray_menu()
         self.tray_icon.show()
 
-        self.overlay.show_message(tr("ready"), duration=2000)
+        self.overlay.show_message(tr("ready"), duration=2000, mode="ready")
         logger.info(f"Application started (Language: {lang})")
 
         if not self.openai_key and not self.groq_key:
@@ -255,7 +259,8 @@ class AppController(QObject):
 
     def _start_hotkeys(self) -> None:
         for manager in self.hotkey_managers:
-            manager.ensure_registered()
+            if not manager.ensure_registered():
+                logger.error("Hotkey failed to register: %s", manager.combination)
 
     def _stop_hotkeys(self) -> None:
         for manager in self.hotkey_managers:
@@ -416,7 +421,9 @@ class AppController(QObject):
 
                 if changes:
                     save_settings_file(self.settings)
-                    self.overlay.show_message(tr("settings_saved"), duration=2000)
+                    self.overlay.show_message(
+                        tr("settings_saved"), duration=2000, mode="done"
+                    )
         finally:
             # Restart hotkeys after dialog closes or if settings flow raises.
             self.hotkeys_suspended = False
@@ -484,6 +491,9 @@ class AppController(QObject):
             self.is_processing = False
             self.overlay.show_message(tr("canceled"), duration=1000)
             logger.info("Processing cancelled.")
+        else:
+            self.overlay.show_message(tr("canceled"), duration=700)
+            logger.info("Cancellation hotkey received while idle.")
 
     def toggle_standard_recording(self):
         self.current_mode = "correction"
@@ -507,7 +517,7 @@ class AppController(QObject):
                     if self.current_mode == "translation"
                     else "recognizing"
                 )
-                self.overlay.show_message(tr(msg_key), animate=True)
+                self.overlay.show_message(tr(msg_key), animate=True, mode=msg_key)
                 self.process_audio_chunks(audio_chunks)
             else:
                 self.overlay.show_message(tr("error_no_speech"), duration=2000)
@@ -516,7 +526,7 @@ class AppController(QObject):
             # Start
             self.paste_target_hwnd = TextProcessor.get_foreground_window()
             self.audio_recorder.start_recording()
-            self.overlay.show_message(tr("recording_started"))
+            self.overlay.show_message(tr("recording_started"), mode="recording")
 
     def process_audio_chunks(self, audio_chunks):
         """Process raw audio chunks in a background worker thread."""
@@ -578,7 +588,8 @@ class AppController(QObject):
 
         if raw_text and not corrected_text.startswith("Error"):
             overlay_key = "warning_raw_text_used" if usage_stats.get("used_raw_fallback") else "done"
-            self.overlay.show_message(tr(overlay_key), duration=1500)
+            mode = "done" if overlay_key == "done" else None
+            self.overlay.show_message(tr(overlay_key), duration=1500, mode=mode)
 
             # History is now parsed from app.log directly in StatsManager
 

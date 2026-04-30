@@ -1,53 +1,173 @@
-QDialog { 
-    background-color: #2c2c2c; 
-    color: white; 
-}
-QLabel { 
-    color: #e0e0e0; 
-    font-family: 'Segoe UI'; 
-    font-size: 14px; 
-}
-QLineEdit { 
-    padding: 5px; 
-    border: 1px solid #555; 
-    border-radius: 5px; 
-    background-color: #3d3d3d; 
-    color: white; 
-    font-family: 'Consolas';
-}
-QLineEdit:focus {
-    border: 2px solid #0078D4;
-    background-color: #454545;
-}
-QPushButton {
-    background-color: #0078D4;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-weight: bold;
-}
-QPushButton:hover { 
-    background-color: #006abc; 
+QDialog {
+    background-color: #101426;
+    color: #eef2ff;
+    font-family: "Segoe UI";
 }
 
-QToolButton#magicContextButton {
-    background-color: #3d3d3d;
-    color: #f5d76e;
-    border: 1px solid #666;
-    border-radius: 5px;
+QFrame#settingsSection {
+    background-color: #12182c;
+    border: 1px solid #29355b;
+    border-radius: 14px;
+}
+
+QLabel {
+    color: #e9edff;
+    font-family: "Segoe UI";
+    font-size: 13px;
+    font-weight: 500;
+}
+
+QLabel a {
+    color: #69ceff;
+    text-decoration: none;
+}
+
+QLineEdit,
+QPlainTextEdit,
+QComboBox {
+    background-color: #252b42;
+    color: #ffffff;
+    border: 1px solid #4a5680;
+    border-radius: 11px;
+    padding: 7px 10px;
+    selection-background-color: #2d8cff;
+    selection-color: #ffffff;
+}
+
+QLineEdit {
+    font-family: "Cascadia Mono", "Consolas";
+    font-size: 15px;
+    font-weight: 400;
+}
+
+QLineEdit#apiKeyInput {
+    font-family: "Segoe UI";
+    font-size: 12px;
+    font-weight: 400;
+}
+
+QPlainTextEdit {
+    font-family: "Segoe UI";
+    font-size: 15px;
+    font-weight: 400;
+}
+
+QLineEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus {
+    border: 1px solid #68d6ff;
+    background-color: #2a314b;
+}
+
+QComboBox {
+    min-height: 18px;
+    font-size: 14px;
+    font-weight: 400;
+    padding-right: 28px;
+}
+
+QComboBox::drop-down {
+    width: 28px;
+    border: none;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    width: 0;
+    height: 0;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #171d32;
+    color: #ffffff;
+    border: 1px solid #4a5680;
+    selection-background-color: #2d8cff;
+    outline: 0;
+}
+
+QCheckBox {
+    color: #e9edff;
+    font-family: "Segoe UI";
+    font-size: 13px;
+    font-weight: 500;
+    spacing: 9px;
+}
+
+QCheckBox::indicator {
+    width: 17px;
+    height: 17px;
+    border-radius: 4px;
+    border: 1px solid #7783b4;
+    background-color: #252b42;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #8a77ff;
+    border-color: #8a77ff;
+}
+
+QPushButton {
+    color: white;
+    border: 1px solid #4a5680;
+    padding: 8px 14px;
+    border-radius: 11px;
+    font-family: "Segoe UI";
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QPushButton#primaryButton {
+    background-color: qlineargradient(
+        x1: 0,
+        y1: 0,
+        x2: 1,
+        y2: 0,
+        stop: 0 #1f9dff,
+        stop: 1 #886cff
+    );
+    border: none;
+}
+
+QPushButton#primaryButton:hover {
+    background-color: qlineargradient(
+        x1: 0,
+        y1: 0,
+        x2: 1,
+        y2: 0,
+        stop: 0 #35adff,
+        stop: 1 #967cff
+    );
+}
+
+QPushButton#secondaryButton {
+    background-color: #252b42;
+}
+
+QPushButton#secondaryButton:hover {
+    background-color: #2d3552;
+    border-color: #68d6ff;
+}
+
+QToolButton#magicContextButton,
+QToolButton#revealButton {
+    background-color: #252b42;
+    color: #ffffff;
+    border: 1px solid #4a5680;
+    border-radius: 11px;
     padding: 0;
-    font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Segoe UI';
+    font-family: "Segoe UI Symbol", "Segoe UI Emoji", "Segoe UI";
     font-size: 15px;
 }
 
-QToolButton#magicContextButton:hover {
-    background-color: #474747;
-    border-color: #0078D4;
+QToolButton#magicContextButton:hover,
+QToolButton#revealButton:hover,
+QToolButton#revealButton:checked {
+    background-color: #2d3552;
+    border-color: #68d6ff;
 }
 
 QToolButton#magicContextButton:disabled {
-    color: #bdbdbd;
-    background-color: #353535;
-    border-color: #555;
+    color: #aeb6cf;
+    background-color: #1d2336;
+    border-color: #384263;
 }

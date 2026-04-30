@@ -24,6 +24,7 @@ class AudioRecorder:
         sample_rate: int = 16000,
         channels: int = 1,
         on_error: Optional[Callable[[str], None]] = None,
+        on_level: Optional[Callable[[float], None]] = None,
     ) -> None:
         """
         Initialize audio recorder.
@@ -32,6 +33,7 @@ class AudioRecorder:
             sample_rate: Sample rate in Hz (default: 16000 for efficiency)
             channels: Number of audio channels (default: 1 for mono)
             on_error: Optional callback for error notifications (e.g., no microphone)
+            on_level: Optional callback with normalized microphone level (0.0..1.0)
         """
         self.sample_rate = sample_rate
         self.channels = channels
@@ -40,6 +42,8 @@ class AudioRecorder:
         self.audio_queue = queue.Queue()
         self.stream = None
         self.on_error = on_error
+        self.on_level = on_level
+        self._level_smoothed = 0.0
 
     def cleanup(self) -> None:
         """
@@ -63,6 +67,17 @@ class AudioRecorder:
             if status:
                 logger.warning(f"Audio recording status: {status}")
             self.audio_queue.put(indata.copy())
+            if self.on_level:
+                try:
+                    samples = indata.astype(np.float32) / 32768.0
+                    peak = float(np.max(np.abs(samples)))
+                    rms = float(np.sqrt(np.mean(samples * samples)))
+                    raw_level = min(1.0, max(rms * 10.0, peak * 1.9))
+                    factor = 0.36 if raw_level > self._level_smoothed else 0.16
+                    self._level_smoothed += (raw_level - self._level_smoothed) * factor
+                    self.on_level(self._level_smoothed)
+                except Exception as e:
+                    logger.debug(f"Audio level callback failed: {e}")
 
         try:
             self.stream = sd.InputStream(
