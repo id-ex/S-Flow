@@ -1,7 +1,7 @@
 import hashlib
+import ctypes
 import logging
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from urllib.parse import urljoin
@@ -248,23 +248,28 @@ class UpdateManager(QObject):
 
             env = self._clean_child_env()
             logger.info("Launching updater.cmd and exiting current process")
-            subprocess.Popen(
-                ["cmd.exe", "/d", "/s", "/c", f'"{updater_path}"'],
-                cwd=app_dir,
-                shell=False,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW
-                    | subprocess.CREATE_NEW_PROCESS_GROUP
-                    | subprocess.DETACHED_PROCESS
-                ),
-                env=env,
-                close_fds=True,
-            )
+            self._launch_updater(updater_path, app_dir, env)
             logging.shutdown()
             os._exit(0)
         except Exception as e:
             logger.exception("Failed to apply update")
             self.error.emit(str(e))
+
+    @staticmethod
+    def _launch_updater(updater_path: str, app_dir: str, env: dict[str, str]) -> None:
+        """Start updater script independently from PyInstaller bootloader state."""
+        os.environ.clear()
+        os.environ.update(env)
+
+        comspec = os.environ.get("ComSpec") or os.path.join(
+            os.environ.get("SystemRoot", r"C:\Windows"),
+            "System32",
+            "cmd.exe",
+        )
+        params = f'/d /c ""{updater_path}""'
+        result = ctypes.windll.shell32.ShellExecuteW(None, "open", comspec, params, app_dir, 0)
+        if result <= 32:
+            raise OSError(f"Failed to launch updater.cmd, ShellExecuteW returned {result}")
 
     @staticmethod
     def _clean_child_env() -> dict[str, str]:
@@ -323,6 +328,8 @@ exit /b 1
 
 :process_stopped
 echo [%date% %time%] process stopped >> "%LOG_FILE%"
+taskkill /f /im "S-Flow.exe" /fi "PID ne %APP_PID%" >> "%LOG_FILE%" 2>&1
+timeout /t 1 /nobreak > nul
 
 if not exist "%NEW_EXE%" (
     echo [%date% %time%] new exe not found >> "%LOG_FILE%"

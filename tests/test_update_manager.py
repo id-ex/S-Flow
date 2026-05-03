@@ -79,6 +79,8 @@ def test_updater_script_uses_pid_backup_and_restart():
     assert 'move /y "%NEW_EXE%" "%EXE_PATH%"' in script
     assert 'set "_PYI_APPLICATION_HOME_DIR="' in script
     assert 'set "PYINSTALLER_RESET_ENVIRONMENT=1"' in script
+    assert 'taskkill /f /im "S-Flow.exe" /fi "PID ne %APP_PID%"' in script
+    assert "timeout /t 1 /nobreak > nul" in script
     assert "timeout /t 2 /nobreak > nul" in script
     assert 'start "" /d "%APP_DIR%" "%EXE_PATH%"' in script
     assert "failed to install new exe, restoring backup" in script
