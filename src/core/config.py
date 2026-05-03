@@ -26,6 +26,10 @@ def get_resource_path(relative_path):
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
 APP_VERSION = "1.10.6"
+UPDATE_MANIFEST_URL = os.getenv(
+    "S_FLOW_UPDATE_MANIFEST_URL",
+    "https://github.com/id-ex/S-Flow/releases/latest/download/update.json",
+)
 
 SYSTEM_PROMPT = (
     "You are an advanced ASR (Automatic Speech Recognition) Post-Processing Engine. "

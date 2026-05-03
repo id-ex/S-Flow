@@ -289,11 +289,15 @@ class AppController(QObject):
         stats_action = QAction(tr("menu_stats"), self.app)
         stats_action.triggered.connect(self.open_statistics)
 
+        check_updates_action = QAction(tr("menu_check_updates"), self.app)
+        check_updates_action.triggered.connect(self.manual_update_check)
+
         quit_action = QAction(tr("menu_quit"), self.app)
         quit_action.triggered.connect(self.quit_app)
 
         menu.addAction(settings_action)
         menu.addAction(stats_action)
+        menu.addAction(check_updates_action)
 
         if self.available_update_url:
             install_update_action = QAction(
