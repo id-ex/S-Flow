@@ -2,6 +2,7 @@ param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
     [string]$ReleaseDir = "release",
     [string]$Repo = "id-ex/S-Flow",
+    [string]$Version = "",
     [string]$Notes = "",
     [switch]$Build,
     [switch]$Clean,
@@ -18,9 +19,14 @@ if ($configText -notmatch 'APP_VERSION\s*=\s*"([^"]+)"') {
     throw "APP_VERSION not found in $configPath"
 }
 
-$version = $Matches[1]
+$configVersion = $Matches[1]
+$version = if ($Version) { $Version.TrimStart("v") } else { $configVersion }
 $tag = "v$version"
 $versionDir = Join-Path (Join-Path $ProjectRoot $ReleaseDir) $tag
+
+if ($Build -and $version -ne $configVersion) {
+    throw "Cannot build version $version because APP_VERSION is $configVersion"
+}
 
 if ($Build -or -not (Test-Path -LiteralPath (Join-Path $versionDir "S-Flow.exe"))) {
     $buildArgs = @(
