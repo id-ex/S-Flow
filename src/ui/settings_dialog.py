@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QWidget,
     QFrame,
+    QTabWidget,
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QThread
 from PyQt6.QtGui import QColor, QKeySequence, QIcon, QKeyEvent, QPainter, QPen, QPixmap
@@ -174,6 +175,67 @@ class MagicContextButton(QToolButton):
         painter.setOpacity(1.0)
 
 
+class PromptEditorDialog(QDialog):
+    """Dialog for editing advanced prompt settings."""
+
+    def __init__(
+        self,
+        parent,
+        system_prompt: str,
+        translation_prompt: str,
+    ):
+        super().__init__(parent)
+        self.setWindowTitle(tr("prompts_dialog_title"))
+        self.setWindowIcon(QIcon(get_resource_path("assets/icon.ico")))
+        self.setFixedSize(560, 560)
+        self.setWindowFlags(
+            self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        warning = QLabel(tr("prompts_warning"))
+        warning.setObjectName("warningLabel")
+        warning.setWordWrap(True)
+        layout.addWidget(warning)
+
+        tabs = QTabWidget(self)
+        self.system_edit = self._create_prompt_editor(system_prompt)
+        self.translation_edit = self._create_prompt_editor(translation_prompt)
+        tabs.addTab(self.system_edit, tr("correction_prompt_tab"))
+        tabs.addTab(self.translation_edit, tr("translation_prompt_tab"))
+        layout.addWidget(tabs, 1)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        ok_btn = QPushButton("OK")
+        ok_btn.setObjectName("primaryButton")
+        ok_btn.clicked.connect(self.accept)
+
+        cancel_btn = QPushButton(tr("cancel_btn"))
+        cancel_btn.setObjectName("secondaryButton")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+    def _create_prompt_editor(self, text: str) -> QPlainTextEdit:
+        editor = QPlainTextEdit(self)
+        editor.setObjectName("promptEditor")
+        editor.setPlainText(text)
+        return editor
+
+    def prompts(self) -> tuple[str, str]:
+        return (
+            self.system_edit.toPlainText().strip(),
+            self.translation_edit.toPlainText().strip(),
+        )
+
+
 class SettingsDialog(QDialog):
     def __init__(
         self,
@@ -187,6 +249,8 @@ class SettingsDialog(QDialog):
         current_startup: bool = False,
         use_llm_correction: bool = True,
         correction_model: str = "gpt-4o-mini",
+        system_prompt: str = "",
+        translation_prompt: str = "",
     ):
         super().__init__(parent)
         self.new_hotkey = current_hotkey
@@ -198,6 +262,8 @@ class SettingsDialog(QDialog):
         self.new_startup = current_startup
         self.use_llm_correction = use_llm_correction
         self.correction_model = correction_model
+        self.system_prompt = system_prompt
+        self.translation_prompt = translation_prompt
 
         from core.config import APP_VERSION
 
@@ -314,15 +380,21 @@ class SettingsDialog(QDialog):
         lang_startup_layout = QHBoxLayout()
         lang_startup_layout.setSpacing(10)
 
-        lang_startup_layout.addWidget(QLabel(tr("language_label")), 1)
+        lang_startup_layout.addWidget(QLabel(tr("language_label")))
         self.lang_combo = QComboBox()
         self.lang_combo.addItem("Русский", "ru")
         self.lang_combo.addItem("English", "en")
         index = self.lang_combo.findData(current_lang)
         if index >= 0:
             self.lang_combo.setCurrentIndex(index)
-        self.lang_combo.setMinimumWidth(164)
+        self.lang_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.lang_combo.setFixedWidth(126)
         lang_startup_layout.addWidget(self.lang_combo)
+
+        prompts_btn = QPushButton(tr("edit_prompts_btn"))
+        prompts_btn.setObjectName("secondaryButton")
+        prompts_btn.clicked.connect(self.open_prompt_editor)
+        lang_startup_layout.addWidget(prompts_btn, 1)
 
         language_layout.addLayout(lang_startup_layout)
 
@@ -505,6 +577,19 @@ class SettingsDialog(QDialog):
         if new_use_llm and new_correction_model:
             self.correction_model = new_correction_model
         self.accept()
+
+    def open_prompt_editor(self):
+        dialog = PromptEditorDialog(
+            self,
+            self.system_prompt,
+            self.translation_prompt,
+        )
+        dialog.setStyleSheet(self.styleSheet())
+        if dialog.exec() == 1:
+            (
+                self.system_prompt,
+                self.translation_prompt,
+            ) = dialog.prompts()
 
     def generate_magic_context(self):
         """Asynchronously triggers context generation via LLM using recent history."""

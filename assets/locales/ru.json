@@ -65,12 +65,19 @@
     "close_btn": "Закрыть",
     "error_invalid_number": "Пожалуйста, введите корректные числа для цен",
     "menu_check_updates": "Проверить обновления",
-    "menu_install_update": "Установить обновление {version}",
+    "menu_install_update": "Обновить до версии {version}",
     "checking_updates": "Проверка обновлений...",
     "update_available_title": "Доступно обновление",
     "update_available_msg": "Доступна новая версия {version}.",
     "update_available_overlay": "Доступна версия {version}!",
     "downloading_update": "Загрузка обновления...",
     "update_error": "Ошибка при проверке обновлений",
-    "update_not_found": "Обновлений не найдено"
+    "update_not_found": "Обновлений не найдено",
+    "edit_prompts_btn": "Системные промпты",
+    "prompts_dialog_title": "Системные промпты",
+    "prompts_warning": "⚠ Изменение этих промптов может ухудшить исправление текста или перевод. Меняйте их только если понимаете, какой результат хотите получить.",
+    "correction_prompt_tab": "Исправление",
+    "translation_prompt_tab": "Перевод",
+    "cancel_btn": "Отмена",
+    "settings_install_update_btn": "Установить {version}"
 }

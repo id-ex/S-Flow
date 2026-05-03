@@ -40,6 +40,10 @@ class StatusOverlay(QWidget):
         self.anim_timer.setInterval(16)
         self.anim_timer.timeout.connect(self.update_animation)
 
+        self.hide_timer = QTimer(self)
+        self.hide_timer.setSingleShot(True)
+        self.hide_timer.timeout.connect(self.hide_overlay)
+
         self.hide()
 
     def show_message(
@@ -57,6 +61,7 @@ class StatusOverlay(QWidget):
             animate: Enables animated text shimmer for processing states.
             mode: Explicit visual mode: "recording", "recognizing", "translating", or "message".
         """
+        self.hide_timer.stop()
         self.text = text.rstrip(".")
         self.mode = mode or ("recognizing" if animate else "message")
         self.phase = 0.0
@@ -78,7 +83,7 @@ class StatusOverlay(QWidget):
         self.update()
 
         if duration:
-            QTimer.singleShot(duration, self.hide_overlay)
+            self.hide_timer.start(duration)
 
     def update_animation(self) -> None:
         self.phase = (self.phase + 0.0045) % 1.0
@@ -95,6 +100,7 @@ class StatusOverlay(QWidget):
         self.audio_level = max(0.0, min(1.0, level))
 
     def hide_overlay(self) -> None:
+        self.hide_timer.stop()
         self.anim_timer.stop()
         self.hide()
 

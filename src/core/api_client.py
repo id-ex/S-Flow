@@ -345,9 +345,15 @@ class ApiClient:
             if user_context:
                 final_system_prompt += f"\n\n[USER CONTEXT: {user_context}]"
 
+            target_label = (
+                "### TEXT TO TRANSLATE:"
+                if is_translation
+                else "### TARGET TEXT TO CORRECT:"
+            )
+
             messages = [
                 {"role": "system", "content": final_system_prompt},
-                {"role": "user", "content": text},
+                {"role": "user", "content": f"{target_label}\n{text}"},
             ]
 
             def _call_chat():

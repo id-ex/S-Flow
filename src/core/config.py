@@ -25,7 +25,7 @@ def get_resource_path(relative_path):
 
 SETTINGS_PATH = os.path.join(get_app_dir(), "settings.json")
 LOG_PATH = os.path.join(get_app_dir(), "app.log")
-APP_VERSION = "1.10.11"
+APP_VERSION = "1.10.12"
 UPDATE_MANIFEST_URL = os.getenv(
     "S_FLOW_UPDATE_MANIFEST_URL",
     "https://github.com/id-ex/S-Flow/releases/latest/download/update.json",
@@ -57,8 +57,6 @@ SYSTEM_PROMPT = (
     "\n"
     "User Input: мы задеплоили фичу в прод на кубере\n"
     "System Output: Мы задеплоили фичу в Prod на Kubernetes.\n"
-    "\n\n"
-    "### TARGET TEXT TO CORRECT:\n"
 )
 
 
@@ -85,8 +83,6 @@ TRANSLATION_PROMPT = (
     "\n"
     "Input: Hello!\n"
     "Output: Привет!\n"
-    "\n\n"
-    "### TEXT TO TRANSLATE:\n"
 )
 
 

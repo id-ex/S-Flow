@@ -22,6 +22,15 @@ QLabel a {
     text-decoration: none;
 }
 
+QLabel#warningLabel {
+    color: #ffdca8;
+    background-color: #2a2134;
+    border: 1px solid #765b9b;
+    border-radius: 10px;
+    padding: 9px 10px;
+    font-weight: 500;
+}
+
 QLineEdit,
 QPlainTextEdit,
 QComboBox {
@@ -50,6 +59,12 @@ QPlainTextEdit {
     font-family: "Segoe UI";
     font-size: 15px;
     font-weight: 400;
+}
+
+QPlainTextEdit#promptEditor {
+    font-family: "Cascadia Mono", "Consolas";
+    font-size: 12px;
+    line-height: 1.25;
 }
 
 QLineEdit:focus,
@@ -83,6 +98,31 @@ QComboBox QAbstractItemView {
     border: 1px solid #4a5680;
     selection-background-color: #2d8cff;
     outline: 0;
+}
+
+QTabWidget::pane {
+    border: 1px solid #29355b;
+    border-radius: 11px;
+    background-color: #12182c;
+    top: -1px;
+}
+
+QTabBar::tab {
+    background-color: #252b42;
+    color: #dce5ff;
+    border: 1px solid #4a5680;
+    border-bottom: none;
+    padding: 8px 12px;
+    margin-right: 4px;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    font-weight: 500;
+}
+
+QTabBar::tab:selected {
+    background-color: #2d3552;
+    color: #ffffff;
+    border-color: #68d6ff;
 }
 
 QCheckBox {

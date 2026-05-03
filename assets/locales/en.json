@@ -65,12 +65,19 @@
     "close_btn": "Close",
     "error_invalid_number": "Please enter valid numbers for pricing",
     "menu_check_updates": "Check for Updates",
-    "menu_install_update": "Install Update {version}",
+    "menu_install_update": "Update to Version {version}",
     "checking_updates": "Checking for updates...",
     "update_available_title": "Update Available",
     "update_available_msg": "A new version {version} is available.",
     "update_available_overlay": "New version {version} is available!",
     "downloading_update": "Downloading update...",
     "update_error": "Failed to check for updates",
-    "update_not_found": "No updates found"
+    "update_not_found": "No updates found",
+    "edit_prompts_btn": "System Prompts",
+    "prompts_dialog_title": "System Prompts",
+    "prompts_warning": "⚠ Changing these prompts can make text correction or translation worse. Edit them only if you understand the result you want.",
+    "correction_prompt_tab": "Correction",
+    "translation_prompt_tab": "Translation",
+    "cancel_btn": "Cancel",
+    "settings_install_update_btn": "Install {version}"
 }

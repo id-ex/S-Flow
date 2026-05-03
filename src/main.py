@@ -243,8 +243,8 @@ class AppController(QObject):
         if not self.openai_key and not self.groq_key:
             QTimer.singleShot(1000, self.open_settings)
 
-        # Auto-check for updates after 5 seconds
-        QTimer.singleShot(5000, lambda: self.update_manager.check_for_updates(manual=False))
+        # Auto-check for updates after the app has settled.
+        QTimer.singleShot(120000, lambda: self.update_manager.check_for_updates(manual=False))
 
     def _create_api_client(self):
         def on_api_notify(msg):
@@ -289,15 +289,11 @@ class AppController(QObject):
         stats_action = QAction(tr("menu_stats"), self.app)
         stats_action.triggered.connect(self.open_statistics)
 
-        check_updates_action = QAction(tr("menu_check_updates"), self.app)
-        check_updates_action.triggered.connect(self.manual_update_check)
-
         quit_action = QAction(tr("menu_quit"), self.app)
         quit_action.triggered.connect(self.quit_app)
 
         menu.addAction(settings_action)
         menu.addAction(stats_action)
-        menu.addAction(check_updates_action)
 
         if self.available_update_url:
             install_update_action = QAction(
@@ -331,6 +327,8 @@ class AppController(QObject):
                 current_startup=self.settings.get("startup", False),
                 use_llm_correction=self.settings.get("use_llm_correction", True),
                 correction_model=self.settings.get("correction_model", "gpt-4o-mini"),
+                system_prompt=self.settings.get("system_prompt", SYSTEM_PROMPT),
+                translation_prompt=self.settings.get("translation_prompt", TRANSLATION_PROMPT),
             )
             # Manually set context because we passed None as parent
             dialog.context_input.setPlainText(self.settings.get("user_context", ""))
@@ -404,6 +402,17 @@ class AppController(QObject):
                     logger.info("User context updated")
                     changes = True
 
+                # Update Prompt Settings
+                prompt_updates = {
+                    "system_prompt": dialog.system_prompt,
+                    "translation_prompt": dialog.translation_prompt,
+                }
+                for key, value in prompt_updates.items():
+                    if value != self.settings.get(key, ""):
+                        self.settings[key] = value
+                        logger.info("%s updated", key)
+                        changes = True
+
                 # Update Startup
                 if dialog.new_startup != self.settings.get("startup", False):
                     self.settings["startup"] = dialog.new_startup
@@ -425,6 +434,7 @@ class AppController(QObject):
 
                 if changes:
                     save_settings_file(self.settings)
+                    self.api_client.config = get_model_config(self.settings)
                     self.overlay.show_message(
                         tr("settings_saved"), duration=2000, mode="done"
                     )
