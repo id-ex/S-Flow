@@ -243,17 +243,22 @@ class UpdateManager(QObject):
         )
 
         try:
-            with open(updater_path, "w", encoding="utf-8") as file:
+            with open(updater_path, "w", encoding="mbcs") as file:
                 file.write(script)
 
             env = self._clean_child_env()
             logger.info("Launching updater.cmd and exiting current process")
             subprocess.Popen(
-                ["cmd.exe", "/d", "/c", updater_path],
+                ["cmd.exe", "/d", "/s", "/c", f'"{updater_path}"'],
                 cwd=app_dir,
                 shell=False,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW
+                    | subprocess.CREATE_NEW_PROCESS_GROUP
+                    | subprocess.DETACHED_PROCESS
+                ),
                 env=env,
+                close_fds=True,
             )
             logging.shutdown()
             os._exit(0)
@@ -265,13 +270,11 @@ class UpdateManager(QObject):
     def _clean_child_env() -> dict[str, str]:
         env = os.environ.copy()
         meipass = getattr(sys, "_MEIPASS", None)
-        for var in [
-            "_MEIPASS",
-            "PYI_CHILD_STOP",
-            "PYI_PARENT_STOP",
-            "PYTHONPATH",
-            "PYTHONHOME",
-        ]:
+        for var in list(env):
+            if var.upper().startswith(("_PYI", "PYINSTALLER")):
+                env.pop(var, None)
+
+        for var in ["_MEIPASS", "PYI_CHILD_STOP", "PYI_PARENT_STOP", "PYTHONPATH", "PYTHONHOME"]:
             env.pop(var, None)
 
         if meipass:
@@ -297,6 +300,14 @@ set "NEW_EXE={new_exe_path}"
 set "BACKUP_EXE={backup_path}"
 set "LOG_FILE={updater_log}"
 set "APP_PID={pid}"
+
+set "_PYI_ARCHIVE_FILE="
+set "_PYI_APPLICATION_HOME_DIR="
+set "_PYI_PARENT_PROCESS_LEVEL="
+set "_PYI_SPLASH_IPC="
+set "PYINSTALLER_RESET_ENVIRONMENT=1"
+set "PYTHONHOME="
+set "PYTHONPATH="
 
 cd /d "%APP_DIR%"
 echo [%date% %time%] updater started for pid %APP_PID% > "%LOG_FILE%"
@@ -332,6 +343,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
+timeout /t 2 /nobreak > nul
 start "" /d "%APP_DIR%" "%EXE_PATH%"
 if errorlevel 1 (
     echo [%date% %time%] failed to start new exe, restoring backup >> "%LOG_FILE%"
