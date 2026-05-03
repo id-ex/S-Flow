@@ -55,8 +55,17 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     throw "GitHub CLI 'gh' is not installed or not in PATH"
 }
 
-$existingRelease = & gh release view $tag --repo $Repo 2>$null
-if ($LASTEXITCODE -eq 0) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    $existingRelease = & gh release view $tag --repo $Repo 2>$null
+    $releaseViewExitCode = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+
+if ($releaseViewExitCode -eq 0) {
     throw "Release $tag already exists in $Repo"
 }
 
