@@ -38,6 +38,8 @@ pytest_temp_run/
 .coverage
 htmlcov/
 *.cover
+test_output.txt
+test_failures.txt
 
 # AI Agents (Claude Code, etc.)
 .claude/
@@ -45,5 +47,5 @@ AGENTS.md
 CLAUDE.md
 .env*
 GEMINI.md
-! .env.example
+!.env.example
 test_app.py
