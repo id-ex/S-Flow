@@ -1,5 +1,7 @@
 # S-Flow
 
+[![CI](https://github.com/id-ex/S-Flow/actions/workflows/ci.yml/badge.svg)](https://github.com/id-ex/S-Flow/actions/workflows/ci.yml)
+
 ## English
 
 **S-Flow** is a Windows desktop application built with Python and PyQt6 that provides seamless speech-to-text processing with AI-powered text correction and translation. The application runs as a system tray service and uses global hotkeys to record, transcribe, and process speech input using OpenAI's Whisper and GPT models.
