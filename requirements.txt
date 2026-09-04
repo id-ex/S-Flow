@@ -7,3 +7,4 @@ keyboard
 pyperclip
 python-dotenv
 httpx<0.28.0
+pywin32
